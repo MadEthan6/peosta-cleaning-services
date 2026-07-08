@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { supabase } from '../supabaseClient';
-import { Calendar, MapPin, DollarSign, FileText, Star, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
+import { Calendar, MapPin, FileText, Star, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 import RatingTip from './RatingTip';
 
 const statusColor = { pending: '#94a3b8', assigned: '#3b82f6', in_progress: '#f59e0b', completed: '#10b981' };
@@ -32,8 +32,18 @@ export default function ClientHistory({ clientEmail, clientId }) {
     }
   };
 
-  const upcoming = jobs.filter(j => j.status !== 'completed');
-  const past = jobs.filter(j => j.status === 'completed');
+  const { upcoming, past } = jobs.reduce(
+    (acc, job) => {
+      if (job.status === 'completed') {
+        acc.past.push(job);
+      } else {
+        acc.upcoming.push(job);
+      }
+      return acc;
+    },
+    { upcoming: [], past: [] }
+  );
+
 
   const downloadReceipt = (job) => {
     const lines = [

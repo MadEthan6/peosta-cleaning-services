@@ -37,7 +37,10 @@ export default function Chat({ userId }) {
               (newMsg.sender_id === selectedUser.id && newMsg.recipient_id === userId);
             
             if (isRelevant) {
-              setMessages(prev => [...prev, newMsg]);
+              setMessages(prev => {
+                if (prev.some(m => m.id === newMsg.id)) return prev;
+                return [...prev, newMsg];
+              });
             }
           }
         )
@@ -103,18 +106,23 @@ export default function Chat({ userId }) {
     setNewMessage(''); // Clear input instantly
 
     try {
-      const { error } = await supabase
+      const { data, error } = await supabase
         .from('messages')
         .insert({
           sender_id: userId,
           recipient_id: selectedUser.id,
           content: messageText
-        });
+        })
+        .select()
+        .single();
 
       if (error) throw error;
-      
-      // Note: The real-time subscription will catch this and insert it into state,
-      // but let's make sure if subscription fails, it displays. (Supabase realtime handles it!)
+      if (data) {
+        setMessages(prev => {
+          if (prev.some(m => m.id === data.id)) return prev;
+          return [...prev, data];
+        });
+      }
     } catch (err) {
       alert('Error sending message: ' + err.message);
     }

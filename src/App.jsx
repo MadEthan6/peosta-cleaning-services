@@ -27,6 +27,7 @@ export default function App() {
   const [user, setUser] = useState(null);
   const [profile, setProfile] = useState(null);
   const [loadingProfile, setLoadingProfile] = useState(false);
+  const [simulatedRole, setSimulatedRole] = useState(null);
 
   // Auth states
   const [authEmail, setAuthEmail] = useState('');
@@ -575,7 +576,8 @@ export default function App() {
     ],
   };
 
-  const activeSidebarItems = profile ? (sidebarItems[profile.role] || sidebarItems.client) : [];
+  const currentRole = simulatedRole || profile?.role || 'client';
+  const activeSidebarItems = profile ? (sidebarItems[currentRole] || sidebarItems.client) : [];
 
   const inputStyleDark = { backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' };
 
@@ -776,27 +778,12 @@ export default function App() {
                       >
                         {cardPaying ? 'Redirecting to Stripe...' : 'Pay with Stripe Checkout'}
                       </button>
-                      <button
-                        type="button"
-                        onClick={() => setUseSimulatedCard(true)}
-                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
-                      >
-                        Use simulated card for testing
-                      </button>
                     </div>
                   ) : (
                     <form onSubmit={processSimulatedPayment} style={{ borderTop: '1px solid var(--border-color)', paddingTop: 24 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
                         <h4 style={{ fontSize: '1rem', marginBottom: 0 }}>Simulated Card Information</h4>
-                        {stripePublishableKey && (
-                          <button
-                            type="button"
-                            onClick={() => setUseSimulatedCard(false)}
-                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
-                          >
-                            Use Stripe Checkout
-                          </button>
-                        )}
+
                       </div>
                       <div className="form-group">
                         <label className="form-label">Card Number</label>
@@ -1029,7 +1016,26 @@ export default function App() {
               <div>
                 <div style={{ padding: '16px 0', borderTop: '1px solid #334155', marginBottom: 16 }}>
                   <p style={{ fontSize: '0.95rem', fontWeight: 600, color: 'white' }}>{profile.full_name}</p>
-                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'capitalize' }}>Role: {profile.role}</p>
+                  <p style={{ fontSize: '0.75rem', color: '#94a3b8', textTransform: 'capitalize' }}>
+                    Role: {profile.role} {simulatedRole && <span style={{ color: '#f59e0b', fontWeight: 'bold' }}>(Simulated Client)</span>}
+                  </p>
+                  {profile.role === 'owner' && (
+                    <button
+                      onClick={() => {
+                        if (simulatedRole === 'client') {
+                          setSimulatedRole(null);
+                          setDashboardTab('jobs');
+                        } else {
+                          setSimulatedRole('client');
+                          setDashboardTab('overview');
+                        }
+                      }}
+                      className="btn btn-secondary"
+                      style={{ width: '100%', padding: '6px 10px', fontSize: '0.8rem', marginTop: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 6, backgroundColor: simulatedRole === 'client' ? '#ef4444' : 'var(--color-primary)', color: 'white' }}
+                    >
+                      {simulatedRole === 'client' ? '❌ Exit Client View' : '👁️ View as Client'}
+                    </button>
+                  )}
                 </div>
                 <button onClick={handleLogout} className="btn btn-outline" style={{ width: '100%', borderColor: '#ef4444', color: '#ef4444', padding: '8px' }}>
                   Sign Out
@@ -1039,6 +1045,20 @@ export default function App() {
 
             {/* Dashboard Content */}
             <div className="dashboard-content">
+              {simulatedRole && (
+                <div style={{ backgroundColor: '#f59e0b', color: '#0f172a', padding: '10px 20px', borderRadius: 8, display: 'flex', justifyContent: 'space-between', alignItems: 'center', fontWeight: 700, fontSize: '0.9rem', marginBottom: 20, boxShadow: '0 4px 6px -1px rgba(0,0,0,0.2)' }}>
+                  <span>⚠️ Simulation Mode: Viewing dashboard as a {simulatedRole}.</span>
+                  <button 
+                    onClick={() => {
+                      setSimulatedRole(null);
+                      setDashboardTab('jobs');
+                    }}
+                    style={{ backgroundColor: '#0f172a', color: '#f59e0b', border: 'none', padding: '6px 14px', borderRadius: 6, cursor: 'pointer', fontSize: '0.8rem', fontWeight: 800 }}
+                  >
+                    Exit Client View
+                  </button>
+                </div>
+              )}
 
               {/* ── JOBS ── */}
               {dashboardTab === 'jobs' && (
@@ -1048,10 +1068,10 @@ export default function App() {
                       <div className="dashboard-header">
                         <div>
                           <h2 style={{ fontSize: '2rem', color: 'white' }}>
-                            {profile.role === 'owner' ? 'All Cleaning Jobs' : profile.role === 'employee' ? 'My Assigned Jobs' : 'My Bookings'}
+                            {currentRole === 'owner' ? 'All Cleaning Jobs' : currentRole === 'employee' ? 'My Assigned Jobs' : 'My Bookings'}
                           </h2>
                           <p style={{ color: '#94a3b8', marginTop: 4 }}>
-                            {profile.role === 'employee' ? 'Select a job to view checklist, tasks, photos, and update status.' : 'View and manage all active cleanings.'}
+                            {currentRole === 'employee' ? 'Select a job to view checklist, tasks, photos, and update status.' : 'View and manage all active cleanings.'}
                           </p>
                         </div>
                         <button onClick={fetchJobs} className="btn btn-secondary" style={{ padding: '10px 18px' }}>Refresh</button>
@@ -1141,7 +1161,7 @@ export default function App() {
                           <h3 style={{ fontSize: '1.4rem', color: 'white', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <CheckCircle2 size={20} style={{ color: '#c084fc' }} /> Job Tasks
                           </h3>
-                          <TodoTasks jobId={selectedJob.id} userRole={profile.role} userId={profile.id} />
+                          <TodoTasks jobId={selectedJob.id} userRole={currentRole} userId={profile.id} />
                         </div>
                       </div>
 
@@ -1154,7 +1174,7 @@ export default function App() {
                       </div>
 
                       {/* Rating/Tip (client only for completed jobs) */}
-                      {profile.role === 'client' && selectedJob.status === 'completed' && (
+                      {currentRole === 'client' && selectedJob.status === 'completed' && (
                         <div className="card dashboard-card" style={{ marginTop: 24 }}>
                           <h3 style={{ fontSize: '1.4rem', color: 'white', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 8 }}>
                             <Star size={20} style={{ color: '#f59e0b' }} /> Rate & Tip Your Cleaner
@@ -1168,7 +1188,7 @@ export default function App() {
               )}
 
               {/* ── INVOICES (owner) ── */}
-              {dashboardTab === 'invoices' && profile.role === 'owner' && (
+              {dashboardTab === 'invoices' && currentRole === 'owner' && (
                 <InvoiceManager />
               )}
 
@@ -1176,14 +1196,14 @@ export default function App() {
               {dashboardTab === 'chat' && (
                 <div className="animate-fade-in">
                   <h2 style={{ fontSize: '2rem', color: 'white', marginBottom: 24 }}>
-                    {profile.role === 'client' ? 'Support Chat' : 'Portal Team Chat'}
+                    {currentRole === 'client' ? 'Support Chat' : 'Portal Team Chat'}
                   </h2>
                   <Chat userId={profile.id} />
                 </div>
               )}
 
               {/* ── CREATE JOB (owner) ── */}
-              {dashboardTab === 'new-job' && profile.role === 'owner' && (
+              {dashboardTab === 'new-job' && currentRole === 'owner' && (
                 <div className="animate-fade-in" style={{ maxWidth: 600, margin: '0 auto' }}>
                   <div className="card dashboard-card">
                     <h2 style={{ fontSize: '1.75rem', color: 'white', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1282,7 +1302,7 @@ export default function App() {
               )}
 
               {/* ── CREATE EMPLOYEE (owner) ── */}
-              {dashboardTab === 'create-employee' && profile.role === 'owner' && (
+              {dashboardTab === 'create-employee' && currentRole === 'owner' && (
                 <div className="animate-fade-in" style={{ maxWidth: 600, margin: '0 auto' }}>
                   <div className="card dashboard-card">
                     <h2 style={{ fontSize: '1.75rem', color: 'white', marginBottom: 24, display: 'flex', alignItems: 'center', gap: 8 }}>
@@ -1310,22 +1330,22 @@ export default function App() {
               )}
 
               {/* ── OWNER SETTINGS ── */}
-              {dashboardTab === 'settings' && profile.role === 'owner' && (
+              {dashboardTab === 'settings' && currentRole === 'owner' && (
                 <OwnerSettings />
               )}
 
               {/* ── EMPLOYEE AVAILABILITY ── */}
-              {dashboardTab === 'availability' && profile.role === 'employee' && (
+              {dashboardTab === 'availability' && currentRole === 'employee' && (
                 <EmployeeAvailability employeeId={profile.id} />
               )}
 
               {/* ── CLIENT BOOKING HISTORY ── */}
-              {dashboardTab === 'history' && profile.role === 'client' && (
+              {dashboardTab === 'history' && currentRole === 'client' && (
                 <ClientHistory clientEmail={profile.email} clientId={profile.id} />
               )}
 
               {/* ── CLIENT OVERVIEW (DASHBOARD HOME) ── */}
-              {dashboardTab === 'overview' && profile.role === 'client' && (
+              {dashboardTab === 'overview' && currentRole === 'client' && (
                 <ClientOverview 
                   clientEmail={profile.email} 
                   onNavigate={setCurrentTab} 
@@ -1334,7 +1354,7 @@ export default function App() {
               )}
 
               {/* ── OWNER ACCOUNTS MANAGER ── */}
-              {dashboardTab === 'accounts' && profile.role === 'owner' && (
+              {dashboardTab === 'accounts' && currentRole === 'owner' && (
                 <AccountManager />
               )}
 

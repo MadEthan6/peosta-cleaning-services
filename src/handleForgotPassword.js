@@ -1,4 +1,4 @@
-import { supabase } from './supabase';
+import { supabase } from './supabaseClient';
 
 const handleForgotPassword = async (email) => {
   if (!email) {

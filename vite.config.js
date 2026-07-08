@@ -5,4 +5,7 @@ import react from '@vitejs/plugin-react'
 export default defineConfig({
   plugins: [react()],
   base: '/peosta-cleaning-services/',
+  test: {
+    exclude: ['node_modules', 'tests/e2e/**'],
+  },
 })

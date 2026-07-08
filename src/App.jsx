@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { supabase } from './supabaseClient';
+import { supabase, createSecondaryClient } from './supabaseClient';
 import Navbar from './components/Navbar';
 import BookingCalendar from './components/Calendar';
 import JobChecklist from './components/JobChecklist';
@@ -9,7 +9,8 @@ import {
   Sparkles, Clock, MapPin, User, DollarSign, CheckCircle2, 
   Calendar as CalendarIcon, ChevronRight, Image as ImageIcon, 
   MessageSquare, Plus, Phone, Mail, FileText, Check, Lock, 
-  PlusCircle, Eye, EyeOff, ShieldAlert, Award, Star, ListChecks
+  PlusCircle, Eye, EyeOff, ShieldAlert, Award, Star, ListChecks,
+  Camera
 } from 'lucide-react';
 
 export default function App() {
@@ -22,7 +23,7 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authFullName, setAuthFullName] = useState('');
-  const [authRole, setAuthRole] = useState('employee');
+  const [authRole, setAuthRole] = useState('client');
   const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
 
@@ -56,19 +57,25 @@ export default function App() {
   const [newJobEmployeeId, setNewJobEmployeeId] = useState('');
   const [allEmployees, setAllEmployees] = useState([]);
 
+  // Create Employee States
+  const [employeeEmail, setEmployeeEmail] = useState('');
+  const [employeePassword, setEmployeePassword] = useState('');
+  const [employeeFullName, setEmployeeFullName] = useState('');
+  const [creatingEmployee, setCreatingEmployee] = useState(false);
+
   useEffect(() => {
     // Check active auth session
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email);
       }
     });
 
     const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
       if (session) {
         setUser(session.user);
-        fetchProfile(session.user.id);
+        fetchProfile(session.user.id, session.user.email);
       } else {
         setUser(null);
         setProfile(null);
@@ -87,16 +94,27 @@ export default function App() {
     }
   }, [profile]);
 
-  const fetchProfile = async (uid) => {
+  const fetchProfile = async (uid, email) => {
     setLoadingProfile(true);
     try {
-      const { data, error } = await supabase
+      let { data, error } = await supabase
         .from('profiles')
         .select('*')
         .eq('id', uid)
-        .single();
+        .maybeSingle();
       
-      if (error) throw error;
+      if (!data && email?.trim().toLowerCase() === 'ethanburds@gmail.com') {
+        const { data: newProfile, error: createError } = await supabase
+          .from('profiles')
+          .insert({ id: uid, email, full_name: 'Ethan Burds', role: 'owner' })
+          .select()
+          .single();
+        if (createError) throw createError;
+        data = newProfile;
+      } else if (error && !data) {
+        throw error;
+      }
+      
       setProfile(data);
     } catch (err) {
       console.error('Error fetching profile:', err.message);
@@ -114,6 +132,8 @@ export default function App() {
       // If employee, only show jobs assigned to them
       if (profile.role === 'employee') {
         query = query.eq('employee_id', profile.id);
+      } else if (profile.role === 'client') {
+        query = query.eq('client_email', profile.email);
       }
 
       const { data, error } = await query;
@@ -142,13 +162,14 @@ export default function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
+      const resolvedRole = authEmail.trim().toLowerCase() === 'ethanburds@gmail.com' ? 'owner' : 'client';
       const { data, error } = await supabase.auth.signUp({
         email: authEmail,
         password: authPassword,
         options: {
           data: {
             full_name: authFullName,
-            role: authRole
+            role: resolvedRole
           }
         }
       });
@@ -162,8 +183,10 @@ export default function App() {
           id: data.user.id,
           full_name: authFullName,
           email: authEmail,
-          role: authRole
+          role: resolvedRole
         });
+
+      if (profileError) throw profileError;
 
       alert('Registration successful! Logging you in...');
       setUser(data.user);
@@ -317,6 +340,50 @@ export default function App() {
     }
   };
 
+  const handleCreateEmployee = async (e) => {
+    e.preventDefault();
+    setCreatingEmployee(true);
+    try {
+      const secondarySupabase = createSecondaryClient();
+      const { data, error } = await secondarySupabase.auth.signUp({
+        email: employeeEmail,
+        password: employeePassword,
+        options: {
+          data: {
+            full_name: employeeFullName,
+            role: 'employee'
+          }
+        }
+      });
+      
+      if (error) throw error;
+      if (!data?.user) throw new Error('No user data returned.');
+
+      // Write to profiles table using the secondary client (authenticated as the new employee)
+      const { error: profileError } = await secondarySupabase
+        .from('profiles')
+        .insert({
+          id: data.user.id,
+          full_name: employeeFullName,
+          email: employeeEmail,
+          role: 'employee'
+        });
+        
+      if (profileError) throw profileError;
+
+      alert(`Employee account for ${employeeFullName} created successfully!`);
+      setEmployeeEmail('');
+      setEmployeePassword('');
+      setEmployeeFullName('');
+      setDashboardTab('jobs');
+      fetchEmployees();
+    } catch (err) {
+      alert('Error creating employee: ' + err.message);
+    } finally {
+      setCreatingEmployee(false);
+    }
+  };
+
   // Update job status (for employees)
   const handleUpdateJobStatus = async (jobId, newStatus) => {
     try {
@@ -344,7 +411,10 @@ export default function App() {
           currentTab={currentTab} 
           setCurrentTab={setCurrentTab} 
           user={user} 
+          profile={profile}
           onLogout={handleLogout} 
+          setAuthRole={setAuthRole}
+          setIsRegistering={setIsRegistering}
         />
       )}
 
@@ -630,7 +700,7 @@ export default function App() {
                   <Lock size={28} />
                 </div>
                 <h3 style={{ fontSize: '1.75rem', marginTop: 16 }}>
-                  {isRegistering ? 'Register Portal Account' : 'Employee Login'}
+                  {isRegistering ? 'Register Portal Account' : (authRole === 'client' ? 'Client Login' : 'Employee Login')}
                 </h3>
                 <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>
                   Peosta Cleaning Portal Access
@@ -643,13 +713,6 @@ export default function App() {
                     <div className="form-group">
                       <label className="form-label">Full Name</label>
                       <input type="text" required value={authFullName} onChange={(e) => setAuthFullName(e.target.value)} className="form-input" placeholder="Jane Doe" />
-                    </div>
-                    <div className="form-group">
-                      <label className="form-label">Portal Role</label>
-                      <select value={authRole} onChange={(e) => setAuthRole(e.target.value)} className="form-input">
-                        <option value="employee">Cleaning Employee</option>
-                        <option value="owner">Company Owner</option>
-                      </select>
                     </div>
                   </>
                 )}
@@ -700,8 +763,49 @@ export default function App() {
           </div>
         )}
 
+        {/* VIEW: EMAIL VERIFICATION PENDING NOTICE */}
+        {currentTab === 'dashboard' && user && !user.email_confirmed_at && (
+          <div className="container flex justify-center" style={{ padding: '80px 24px' }}>
+            <div className="card text-center animate-fade-in" style={{ width: '100%', maxWidth: 500, margin: '0 auto', textAlign: 'center' }}>
+              <div style={{ color: 'var(--color-primary)', display: 'inline-flex', padding: 16, borderRadius: '50%', backgroundColor: 'rgba(13, 148, 136, 0.1)', marginBottom: 20 }}>
+                <Mail size={48} />
+              </div>
+              <h2 style={{ fontSize: '1.75rem', color: 'var(--color-secondary)', marginBottom: 12 }}>Verify Your Email</h2>
+              <p style={{ color: 'var(--text-muted)', marginBottom: 24, lineHeight: 1.6 }}>
+                A verification link has been sent to <strong>{user.email}</strong>. Please check your inbox and verify your email to access your dashboard.
+              </p>
+              <div className="flex flex-col gap-4" style={{ width: '100%' }}>
+                <button 
+                  onClick={async () => {
+                    const { error } = await supabase.auth.resend({
+                      type: 'signup',
+                      email: user.email
+                    });
+                    if (error) {
+                      alert('Error resending email: ' + error.message);
+                    } else {
+                      alert('Verification email resent successfully!');
+                    }
+                  }} 
+                  className="btn btn-primary"
+                  style={{ width: '100%', padding: '12px' }}
+                >
+                  Resend Verification Email
+                </button>
+                <button 
+                  onClick={handleLogout} 
+                  className="btn btn-outline"
+                  style={{ width: '100%', padding: '12px', borderColor: '#ef4444', color: '#ef4444' }}
+                >
+                  Cancel / Sign Out
+                </button>
+              </div>
+            </div>
+          </div>
+        )}
+
         {/* VIEW: EMPLOYEE PORTAL DASHBOARD (FULL SCREEN INTEGRATED PORTAL) */}
-        {currentTab === 'dashboard' && profile && (
+        {currentTab === 'dashboard' && profile && user && user.email_confirmed_at && (
           <div className="dashboard-container">
             {/* Sidebar Navigation */}
             <div className="sidebar">
@@ -723,12 +827,20 @@ export default function App() {
                     <MessageSquare size={20} /> Chat / Direct Text
                   </div>
                   {profile.role === 'owner' && (
-                    <div 
-                      onClick={() => setDashboardTab('new-job')}
-                      className={`sidebar-item ${dashboardTab === 'new-job' ? 'active' : ''}`}
-                    >
-                      <PlusCircle size={20} /> Create New Job
-                    </div>
+                    <>
+                      <div 
+                        onClick={() => setDashboardTab('new-job')}
+                        className={`sidebar-item ${dashboardTab === 'new-job' ? 'active' : ''}`}
+                      >
+                        <PlusCircle size={20} /> Create New Job
+                      </div>
+                      <div 
+                        onClick={() => setDashboardTab('create-employee')}
+                        className={`sidebar-item ${dashboardTab === 'create-employee' ? 'active' : ''}`}
+                      >
+                        <User size={20} /> Create Employee
+                      </div>
+                    </>
                   )}
                 </div>
               </div>
@@ -947,6 +1059,67 @@ export default function App() {
 
                       <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px' }}>
                         Create & Deploy Job
+                      </button>
+                    </form>
+                  </div>
+                </div>
+              )}
+
+              {/* SUBTAB: CREATE EMPLOYEE (OWNER ONLY) */}
+              {dashboardTab === 'create-employee' && profile.role === 'owner' && (
+                <div className="animate-fade-in" style={{ maxWidth: 600, margin: '0 auto' }}>
+                  <div className="card dashboard-card">
+                    <h2 style={{ fontSize: '1.75rem', color: 'white', marginBottom: 24, display: 'flex', alignCenter: 'center', gap: 8 }}>
+                      <User size={24} style={{ color: 'var(--color-primary-light)' }} /> Create Employee Account
+                    </h2>
+
+                    <form onSubmit={handleCreateEmployee}>
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: 'white' }}>Full Name</label>
+                        <input 
+                          type="text" 
+                          required 
+                          value={employeeFullName} 
+                          onChange={(e) => setEmployeeFullName(e.target.value)} 
+                          className="form-input" 
+                          style={{ backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
+                          placeholder="Jane Doe" 
+                        />
+                      </div>
+
+                      <div className="form-group">
+                        <label className="form-label" style={{ color: 'white' }}>Email Address</label>
+                        <input 
+                          type="email" 
+                          required 
+                          value={employeeEmail} 
+                          onChange={(e) => setEmployeeEmail(e.target.value)} 
+                          className="form-input" 
+                          style={{ backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
+                          placeholder="jane@peostacleaning.com" 
+                        />
+                      </div>
+
+                      <div className="form-group" style={{ marginBottom: 24 }}>
+                        <label className="form-label" style={{ color: 'white' }}>Password</label>
+                        <input 
+                          type="password" 
+                          required 
+                          value={employeePassword} 
+                          onChange={(e) => setEmployeePassword(e.target.value)} 
+                          className="form-input" 
+                          style={{ backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
+                          placeholder="••••••••" 
+                        />
+                      </div>
+
+                      <button 
+                        type="submit" 
+                        className="btn btn-primary" 
+                        style={{ width: '100%', padding: '14px' }}
+                        disabled={creatingEmployee}
+                      >
+                        {creatingEmployee ? 'Creating Account...' : 'Create Employee Account'}
                       </button>
                     </form>
                   </div>

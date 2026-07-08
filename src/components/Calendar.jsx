@@ -35,6 +35,8 @@ export default function BookingCalendar({
     if (profile) {
       setClientName(profile.full_name || '');
       setClientEmail(profile.email || '');
+      setClientPhone(profile.phone || '');
+      setClientAddress(profile.address || '');
     }
   }, [profile]);
   const [selectedDate, setSelectedDate] = useState(null);
@@ -264,6 +266,12 @@ export default function BookingCalendar({
       status: 'pending',
       paymentStatus: 'unpaid'
     };
+
+    if (user) {
+      supabase.from('profiles').update({ phone: clientPhone, address: clientAddress }).eq('id', user.id).then(({ error }) => {
+        if (error) console.error('Error auto-updating profile data on checkout:', error);
+      });
+    }
 
     onBookingComplete(bookingDetails);
   };

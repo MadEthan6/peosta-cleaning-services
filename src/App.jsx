@@ -78,9 +78,35 @@ export default function App() {
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
   const [authFullName, setAuthFullName] = useState('');
+  const [authPhone, setAuthPhone] = useState('');
+  const [authAddress, setAuthAddress] = useState('');
   const [authRole, setAuthRole] = useState('client');
   const [isRegistering, setIsRegistering] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
+
+  // Address search states for registration
+  const [regAddressSuggestions, setRegAddressSuggestions] = useState([]);
+  const [regShowSuggestions, setRegShowSuggestions] = useState(false);
+  const [regAddressLoading, setRegAddressLoading] = useState(false);
+
+  const handleRegAddressChange = async (val) => {
+    setAuthAddress(val);
+    if (val.length < 4) {
+      setRegAddressSuggestions([]);
+      return;
+    }
+    setRegAddressLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+      const data = await res.json();
+      setRegAddressSuggestions(data || []);
+      setRegShowSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching registration address suggestions:', err);
+    } finally {
+      setRegAddressLoading(false);
+    }
+  };
 
   // Payment states
   const [invoiceAmount, setInvoiceAmount] = useState('');
@@ -308,7 +334,9 @@ export default function App() {
         id: data.user.id,
         full_name: authFullName,
         email: authEmail,
-        role: resolvedRole
+        role: resolvedRole,
+        phone: authPhone || null,
+        address: authAddress || null
       });
       if (profileError) throw profileError;
 
@@ -951,10 +979,64 @@ export default function App() {
 
                   <form onSubmit={isRegistering ? handleRegister : handleLogin}>
                     {isRegistering && (
-                      <div className="form-group">
-                        <label className="form-label">Full Name</label>
-                        <input type="text" required value={authFullName} onChange={(e) => setAuthFullName(e.target.value)} className="form-input" placeholder="Jane Doe" />
-                      </div>
+                      <>
+                        <div className="form-group">
+                          <label className="form-label">Full Name</label>
+                          <input type="text" required value={authFullName} onChange={(e) => setAuthFullName(e.target.value)} className="form-input" placeholder="Jane Doe" />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">Phone Number (optional)</label>
+                          <input 
+                            type="tel" 
+                            value={authPhone} 
+                            onChange={(e) => setAuthPhone(formatPhoneNumber(e.target.value))} 
+                            className="form-input" 
+                            placeholder="(563) 555-0100" 
+                          />
+                        </div>
+                        <div className="form-group" style={{ position: 'relative' }}>
+                          <label className="form-label">Service Address (optional)</label>
+                          <input 
+                            type="text" 
+                            value={authAddress} 
+                            onChange={(e) => handleRegAddressChange(e.target.value)} 
+                            onFocus={() => regAddressSuggestions.length > 0 && setRegShowSuggestions(true)}
+                            className="form-input" 
+                            placeholder="123 Main St, Peosta, IA" 
+                          />
+                          {regShowSuggestions && regAddressSuggestions.length > 0 && (
+                            <>
+                              <div onClick={() => setRegShowSuggestions(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                              <div style={{
+                                position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                                backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8,
+                                boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', marginTop: 4, padding: 4,
+                                display: 'flex', flexDirection: 'column', gap: 2
+                              }}>
+                                {regAddressSuggestions.map((sug, i) => (
+                                  <div
+                                    key={i}
+                                    onClick={() => {
+                                      setAuthAddress(sug.display_name);
+                                      setRegShowSuggestions(false);
+                                      setRegAddressSuggestions([]);
+                                    }}
+                                    style={{
+                                      padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
+                                      color: '#e2e8f0', fontSize: '0.85rem', transition: 'all 0.15s',
+                                      whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                    }}
+                                    onMouseEnter={(e) => e.target.style.backgroundColor = '#2dd4bf20'}
+                                    onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                                  >
+                                    📍 {sug.display_name}
+                                  </div>
+                                ))}
+                              </div>
+                            </>
+                          )}
+                        </div>
+                      </>
                     )}
                     <div className="form-group">
                       <label className="form-label">Email Address</label>

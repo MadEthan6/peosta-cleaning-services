@@ -39,6 +39,52 @@ export default function BookingCalendar({ onBookingComplete }) {
   const [validationErrors, setValidationErrors] = useState({});
   const [attemptedSubmit, setAttemptedSubmit] = useState(false);
 
+  // Address search states
+  const [addressSuggestions, setAddressSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
+  const [addressLoading, setAddressLoading] = useState(false);
+
+  const formatPhoneNumber = (value) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const length = phoneNumber.length;
+    if (length < 4) return phoneNumber;
+    if (length < 7) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    }
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+  const handlePhoneChange = (val) => {
+    const formatted = formatPhoneNumber(val);
+    setClientPhone(formatted);
+    if (validationErrors.clientPhone) {
+      setValidationErrors(prev => ({ ...prev, clientPhone: null }));
+    }
+  };
+
+  const handleAddressChange = async (val) => {
+    setClientAddress(val);
+    if (validationErrors.clientAddress) {
+      setValidationErrors(prev => ({ ...prev, clientAddress: null }));
+    }
+    if (val.length < 4) {
+      setAddressSuggestions([]);
+      return;
+    }
+    setAddressLoading(true);
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+      const data = await res.json();
+      setAddressSuggestions(data || []);
+      setShowSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching suggestions:', err);
+    } finally {
+      setAddressLoading(false);
+    }
+  };
+
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -519,10 +565,7 @@ export default function BookingCalendar({ onBookingComplete }) {
                   type="tel" 
                   name="clientPhone"
                   value={clientPhone} 
-                  onChange={(e) => {
-                    setClientPhone(e.target.value);
-                    if (validationErrors.clientPhone) setValidationErrors(prev => ({ ...prev, clientPhone: null }));
-                  }} 
+                  onChange={(e) => handlePhoneChange(e.target.value)} 
                   className="form-input" 
                   placeholder="(563) 555-0100"
                   style={{
@@ -534,16 +577,14 @@ export default function BookingCalendar({ onBookingComplete }) {
                   <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientPhone}</span>
                 )}
               </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
+              <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
                 <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'inherit' }}>Service Address</label>
                 <input 
                   type="text" 
                   name="clientAddress"
                   value={clientAddress} 
-                  onChange={(e) => {
-                    setClientAddress(e.target.value);
-                    if (validationErrors.clientAddress) setValidationErrors(prev => ({ ...prev, clientAddress: null }));
-                  }} 
+                  onChange={(e) => handleAddressChange(e.target.value)} 
+                  onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
                   className="form-input" 
                   placeholder="123 Main St, Peosta, IA"
                   style={{
@@ -551,6 +592,37 @@ export default function BookingCalendar({ onBookingComplete }) {
                     backgroundColor: attemptedSubmit && validationErrors.clientAddress ? '#fff5f5' : 'white'
                   }}
                 />
+                {showSuggestions && addressSuggestions.length > 0 && (
+                  <>
+                    <div onClick={() => setShowSuggestions(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                    <div style={{
+                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                      backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8,
+                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', marginTop: 4, padding: 4,
+                      display: 'flex', flexDirection: 'column', gap: 2
+                    }}>
+                      {addressSuggestions.map((sug, i) => (
+                        <div
+                          key={i}
+                          onClick={() => {
+                            setClientAddress(sug.display_name);
+                            setShowSuggestions(false);
+                            setAddressSuggestions([]);
+                          }}
+                          style={{
+                            padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
+                            color: '#e2e8f0', fontSize: '0.85rem', transition: 'all 0.15s',
+                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                          }}
+                          onMouseEnter={(e) => e.target.style.backgroundColor = '#2dd4bf20'}
+                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                        >
+                          📍 {sug.display_name}
+                        </div>
+                      ))}
+                    </div>
+                  </>
+                )}
                 {attemptedSubmit && validationErrors.clientAddress && (
                   <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientAddress}</span>
                 )}

@@ -11,12 +11,15 @@ import TodoTasks from './components/TodoTasks';
 import RatingTip from './components/RatingTip';
 import ClientHistory from './components/ClientHistory';
 import EmployeeAvailability from './components/EmployeeAvailability';
+import ClientOverview from './components/ClientOverview';
+import AccountManager from './components/AccountManager';
 import {
   Sparkles, Clock, MapPin, User, DollarSign, CheckCircle2,
   Calendar as CalendarIcon, ChevronRight, Image as ImageIcon,
   MessageSquare, Plus, Phone, Mail, FileText, Check, Lock,
   PlusCircle, Eye, EyeOff, ShieldAlert, Award, Star, ListChecks,
-  Camera, Settings, Receipt, History, CalendarDays, BarChart2
+  Camera, Settings, Receipt, History, CalendarDays, BarChart2,
+  Users, LayoutDashboard
 } from 'lucide-react';
 
 export default function App() {
@@ -60,6 +63,42 @@ export default function App() {
   const [newJobDate, setNewJobDate] = useState('');
   const [newJobEmployeeId, setNewJobEmployeeId] = useState('');
   const [allEmployees, setAllEmployees] = useState([]);
+
+  // Owner autocomplete states
+  const [ownerAddressSuggestions, setOwnerAddressSuggestions] = useState([]);
+  const [showOwnerSuggestions, setShowOwnerSuggestions] = useState(false);
+
+  const formatPhoneNumber = (value) => {
+    if (!value) return value;
+    const phoneNumber = value.replace(/[^\d]/g, '');
+    const length = phoneNumber.length;
+    if (length < 4) return phoneNumber;
+    if (length < 7) {
+      return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3)}`;
+    }
+    return `(${phoneNumber.slice(0, 3)}) ${phoneNumber.slice(3, 6)}-${phoneNumber.slice(6, 10)}`;
+  };
+
+  const handleOwnerPhoneChange = (val) => {
+    const formatted = formatPhoneNumber(val);
+    setNewJobClientPhone(formatted);
+  };
+
+  const handleOwnerAddressChange = async (val) => {
+    setNewJobAddress(val);
+    if (val.length < 4) {
+      setOwnerAddressSuggestions([]);
+      return;
+    }
+    try {
+      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+      const data = await res.json();
+      setOwnerAddressSuggestions(data || []);
+      setShowOwnerSuggestions(true);
+    } catch (err) {
+      console.error('Error fetching suggestions:', err);
+    }
+  };
 
   // Stripe integration & forgot password states
   const [stripePublishableKey, setStripePublishableKey] = useState('');
@@ -167,6 +206,13 @@ export default function App() {
       }
 
       setProfile(data);
+      if (data) {
+        if (data.role === 'client') {
+          setDashboardTab('overview');
+        } else {
+          setDashboardTab('jobs');
+        }
+      }
     } catch (err) {
       console.error('Error fetching profile:', err.message);
     } finally {
@@ -511,6 +557,7 @@ export default function App() {
     owner: [
       { id: 'jobs', icon: <ListChecks size={20} />, label: 'All Jobs' },
       { id: 'invoices', icon: <Receipt size={20} />, label: 'Invoices' },
+      { id: 'accounts', icon: <Users size={20} />, label: 'Accounts' },
       { id: 'chat', icon: <MessageSquare size={20} />, label: 'Team Chat' },
       { id: 'new-job', icon: <PlusCircle size={20} />, label: 'Create Job' },
       { id: 'create-employee', icon: <User size={20} />, label: 'Create Employee' },
@@ -522,6 +569,7 @@ export default function App() {
       { id: 'chat', icon: <MessageSquare size={20} />, label: 'Team Chat' },
     ],
     client: [
+      { id: 'overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
       { id: 'history', icon: <History size={20} />, label: 'My Bookings' },
       { id: 'chat', icon: <MessageSquare size={20} />, label: 'Support Chat' },
     ],
@@ -850,7 +898,7 @@ export default function App() {
                     <div className="form-group" style={{ marginBottom: 24 }}>
                       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
                         <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
-                        {!isRegistering && (
+                        {!isRegistering && authRole === 'client' && (
                           <button
                             type="button"
                             onClick={() => setIsForgotPassword(true)}
@@ -1049,7 +1097,16 @@ export default function App() {
                       <div className="flex justify-between align-center" style={{ marginBottom: 24 }}>
                         <div>
                           <h2 style={{ fontSize: '2.25rem', color: 'white' }}>{selectedJob.client_name}</h2>
-                          <p style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', gap: 6, marginTop: 4 }}><MapPin size={16} /> {selectedJob.address}</p>
+                          <p style={{ color: '#94a3b8', display: 'flex', alignItems: 'center', flexWrap: 'wrap', gap: 10, marginTop: 6 }}>
+                            <MapPin size={16} /> {selectedJob.address}
+                            <button
+                              onClick={() => window.open(`https://www.google.com/maps/search/?api=1&query=${encodeURIComponent(selectedJob.address)}`, '_blank')}
+                              className="btn btn-secondary"
+                              style={{ padding: '4px 10px', fontSize: '0.75rem', display: 'inline-flex', alignItems: 'center', gap: 4, height: 'auto', border: '1px solid #475569' }}
+                            >
+                              🗺️ Get Directions
+                            </button>
+                          </p>
                           {selectedJob.frequency && selectedJob.frequency !== 'one-time' && (
                             <span style={{ fontSize: '0.85rem', color: '#f59e0b', marginTop: 4, display: 'block' }}>🔄 {selectedJob.frequency} recurring</span>
                           )}
@@ -1140,16 +1197,56 @@ export default function App() {
                         </div>
                         <div className="form-group">
                           <label className="form-label" style={{ color: 'white' }}>Client Phone</label>
-                          <input type="tel" required value={newJobClientPhone} onChange={(e) => setNewJobClientPhone(e.target.value)} className="form-input" style={inputStyleDark} placeholder="(563) 555-0199" />
+                          <input type="tel" required value={newJobClientPhone} onChange={(e) => handleOwnerPhoneChange(e.target.value)} className="form-input" style={inputStyleDark} placeholder="(563) 555-0199" />
                         </div>
                       </div>
                       <div className="form-group">
                         <label className="form-label" style={{ color: 'white' }}>Client Email</label>
                         <input type="email" required value={newJobClientEmail} onChange={(e) => setNewJobClientEmail(e.target.value)} className="form-input" style={inputStyleDark} placeholder="john@example.com" />
                       </div>
-                      <div className="form-group">
+                      <div className="form-group" style={{ position: 'relative' }}>
                         <label className="form-label" style={{ color: 'white' }}>Cleaning Address</label>
-                        <input type="text" required value={newJobAddress} onChange={(e) => setNewJobAddress(e.target.value)} className="form-input" style={inputStyleDark} placeholder="123 Broad St, Peosta, IA" />
+                        <input 
+                          type="text" 
+                          required 
+                          value={newJobAddress} 
+                          onChange={(e) => handleOwnerAddressChange(e.target.value)} 
+                          onFocus={() => ownerAddressSuggestions.length > 0 && setShowOwnerSuggestions(true)}
+                          className="form-input" 
+                          style={inputStyleDark} 
+                          placeholder="123 Broad St, Peosta, IA" 
+                        />
+                        {showOwnerSuggestions && ownerAddressSuggestions.length > 0 && (
+                          <>
+                            <div onClick={() => setShowOwnerSuggestions(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                            <div style={{
+                              position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                              backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8,
+                              boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', marginTop: 4, padding: 4,
+                              display: 'flex', flexDirection: 'column', gap: 2
+                            }}>
+                              {ownerAddressSuggestions.map((sug, i) => (
+                                <div
+                                  key={i}
+                                  onClick={() => {
+                                    setNewJobAddress(sug.display_name);
+                                    setShowOwnerSuggestions(false);
+                                    setOwnerAddressSuggestions([]);
+                                  }}
+                                  style={{
+                                    padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
+                                    color: '#e2e8f0', fontSize: '0.85rem', transition: 'all 0.15s',
+                                    whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                                  }}
+                                  onMouseEnter={(e) => e.target.style.backgroundColor = '#2dd4bf20'}
+                                  onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                                >
+                                  📍 {sug.display_name}
+                                </div>
+                              ))}
+                            </div>
+                          </>
+                        )}
                       </div>
                       <div className="grid grid-3" style={{ gap: 16 }}>
                         <div className="form-group">
@@ -1225,6 +1322,20 @@ export default function App() {
               {/* ── CLIENT BOOKING HISTORY ── */}
               {dashboardTab === 'history' && profile.role === 'client' && (
                 <ClientHistory clientEmail={profile.email} clientId={profile.id} />
+              )}
+
+              {/* ── CLIENT OVERVIEW (DASHBOARD HOME) ── */}
+              {dashboardTab === 'overview' && profile.role === 'client' && (
+                <ClientOverview 
+                  clientEmail={profile.email} 
+                  onNavigate={setCurrentTab} 
+                  onDashboardTabChange={setDashboardTab} 
+                />
+              )}
+
+              {/* ── OWNER ACCOUNTS MANAGER ── */}
+              {dashboardTab === 'accounts' && profile.role === 'owner' && (
+                <AccountManager />
               )}
 
             </div>

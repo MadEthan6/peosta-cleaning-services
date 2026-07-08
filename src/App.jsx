@@ -61,6 +61,14 @@ export default function App() {
   const [newJobEmployeeId, setNewJobEmployeeId] = useState('');
   const [allEmployees, setAllEmployees] = useState([]);
 
+  // Stripe integration & forgot password states
+  const [stripePublishableKey, setStripePublishableKey] = useState('');
+  const [useSimulatedCard, setUseSimulatedCard] = useState(false);
+  const [isForgotPassword, setIsForgotPassword] = useState(false);
+  const [newPassword, setNewPassword] = useState('');
+  const [confirmPassword, setConfirmPassword] = useState('');
+  const [updatingPassword, setUpdatingPassword] = useState(false);
+
   // Owner: create employee
   const [employeeEmail, setEmployeeEmail] = useState('');
   const [employeePassword, setEmployeePassword] = useState('');
@@ -68,6 +76,7 @@ export default function App() {
   const [creatingEmployee, setCreatingEmployee] = useState(false);
 
   useEffect(() => {
+    // 1. Check active auth session on load
     supabase.auth.getSession().then(({ data: { session } }) => {
       if (session) {
         setUser(session.user);
@@ -75,7 +84,11 @@ export default function App() {
       }
     });
 
-    const { data: { subscription } } = supabase.auth.onAuthStateChange((_event, session) => {
+    // 2. Listen for auth changes, including password recovery redirects
+    const { data: { subscription } } = supabase.auth.onAuthStateChange((event, session) => {
+      if (event === 'PASSWORD_RECOVERY') {
+        setCurrentTab('reset-password-form');
+      }
       if (session) {
         setUser(session.user);
         fetchProfile(session.user.id, session.user.email);
@@ -84,6 +97,43 @@ export default function App() {
         setProfile(null);
       }
     });
+
+    // 3. Fetch Stripe Publishable Key
+    const fetchStripeKey = async () => {
+      try {
+        const { data } = await supabase.from('business_settings').select('stripe_publishable_key').eq('id', 1).maybeSingle();
+        if (data?.stripe_publishable_key) {
+          setStripePublishableKey(data.stripe_publishable_key);
+        }
+      } catch (err) {
+        console.error('Error fetching Stripe key:', err);
+      }
+    };
+    fetchStripeKey();
+
+    // 4. Handle success/cancel redirect params from Stripe checkout session
+    const params = new URLSearchParams(window.location.search);
+    if (params.get('payment_success') === 'true') {
+      const id = params.get('id');
+      const type = params.get('type');
+      if (id && type) {
+        const updatePaymentStatus = async () => {
+          try {
+            if (type === 'booking') {
+              await supabase.from('jobs').update({ payment_status: 'paid' }).eq('id', id);
+            } else if (type === 'invoice') {
+              await supabase.from('invoices').update({ status: 'paid', paid_at: new Date().toISOString() }).eq('id', id);
+            }
+            setPaymentSuccess(true);
+            setCurrentTab('pay');
+            window.history.replaceState({}, document.title, window.location.pathname);
+          } catch (err) {
+            console.error('Error updating payment status:', err);
+          }
+        };
+        updatePaymentStatus();
+      }
+    }
 
     return () => subscription.unsubscribe();
   }, []);
@@ -189,6 +239,126 @@ export default function App() {
       setCurrentTab('dashboard');
     } catch (err) {
       alert('Login Error: ' + err.message);
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!authEmail) {
+      alert('Please enter your email address first.');
+      return;
+    }
+    try {
+      const { error } = await supabase.auth.resetPasswordForEmail(authEmail, {
+        redirectTo: window.location.origin + window.location.pathname
+      });
+      if (error) throw error;
+      alert('A password reset link has been sent to ' + authEmail + '. Please check your inbox.');
+      setIsForgotPassword(false);
+    } catch (err) {
+      alert('Error: ' + err.message);
+    }
+  };
+
+  const handleUpdatePassword = async (e) => {
+    e.preventDefault();
+    if (newPassword !== confirmPassword) {
+      alert('Passwords do not match.');
+      return;
+    }
+    setUpdatingPassword(true);
+    try {
+      const { error } = await supabase.auth.updateUser({ password: newPassword });
+      if (error) throw error;
+      alert('Password updated successfully! You can now log in.');
+      setNewPassword('');
+      setConfirmPassword('');
+      setCurrentTab('portal-login');
+    } catch (err) {
+      alert('Error updating password: ' + err.message);
+    } finally {
+      setUpdatingPassword(false);
+    }
+  };
+
+  const handleStripePayment = async (e) => {
+    if (e) e.preventDefault();
+
+    if (!stripePublishableKey) {
+      alert('Real payments are not configured yet (Stripe credentials missing). Please use the simulated sandbox card payment option.');
+      return;
+    }
+
+    setCardPaying(true);
+    try {
+      let targetId = '';
+      let payloadType = 'booking';
+
+      if (payingBooking) {
+        // Create job record first as pending + unpaid so we have a reference
+        const { data, error } = await supabase
+          .from('jobs')
+          .insert({
+            client_name: payingBooking.clientName,
+            client_email: payingBooking.clientEmail,
+            client_phone: payingBooking.clientPhone,
+            address: payingBooking.clientAddress,
+            service_package: payingBooking.servicePackage,
+            scheduled_at: payingBooking.scheduledAt,
+            price: payingBooking.price,
+            frequency: payingBooking.frequency || 'one-time',
+            status: 'pending',
+            payment_status: 'unpaid'
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        targetId = data.id;
+      } else {
+        // Custom invoice payment - create invoice record as unpaid first
+        const { data, error } = await supabase
+          .from('invoices')
+          .insert({
+            client_name: invoiceClientName,
+            client_email: invoiceEmail,
+            amount: parseFloat(invoiceAmount),
+            notes: 'Stripe invoice payment',
+            status: 'unpaid'
+          })
+          .select()
+          .single();
+        if (error) throw error;
+        targetId = data.id;
+        payloadType = 'invoice';
+      }
+
+      // Invoke Supabase Edge Function to generate Stripe Checkout Session
+      const { data: resData, error: funcError } = await supabase.functions.invoke('stripe-checkout', {
+        body: {
+          amount: parseFloat(payingBooking ? payingBooking.price : invoiceAmount),
+          client_name: payingBooking ? payingBooking.clientName : invoiceClientName,
+          client_email: payingBooking ? payingBooking.clientEmail : invoiceEmail,
+          service_package: payingBooking ? payingBooking.servicePackage : 'Peosta Cleaning Services Invoice',
+          frequency: payingBooking ? payingBooking.frequency : 'one-time',
+          metadata: {
+            success_url: window.location.origin + window.location.pathname,
+            cancel_url: window.location.origin + window.location.pathname,
+            type: payloadType,
+            job_id: payloadType === 'booking' ? targetId : undefined,
+            invoice_id: payloadType === 'invoice' ? targetId : undefined
+          }
+        }
+      });
+
+      if (funcError) throw new Error(funcError.message);
+      if (!resData?.url) throw new Error('No checkout URL returned from payment server.');
+
+      // Redirect to Stripe checkout page
+      window.location.href = resData.url;
+
+    } catch (err) {
+      alert('Stripe Error: ' + err.message);
+      setCardPaying(false);
     }
   };
 
@@ -545,26 +715,60 @@ export default function App() {
                     </form>
                   )}
 
-                  <form onSubmit={processSimulatedPayment} style={{ borderTop: '1px solid var(--border-color)', paddingTop: 24 }}>
-                    <h4 style={{ fontSize: '1rem', marginBottom: 16 }}>Card Information</h4>
-                    <div className="form-group">
-                      <label className="form-label">Card Number</label>
-                      <input type="text" required maxLength="19" value={cardNumber} onChange={(e) => { const formatted = e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim(); setCardNumber(formatted); }} className="form-input" placeholder="4242 4242 4242 4242" />
+                  {stripePublishableKey && !useSimulatedCard ? (
+                    <div style={{ borderTop: '1px solid var(--border-color)', paddingTop: 24, textAlign: 'center' }}>
+                      <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginBottom: 20 }}>
+                        A secure checkout session will be created on Stripe for <strong>${payingBooking ? payingBooking.price : invoiceAmount || '0.00'}</strong>.
+                      </p>
+                      <button
+                        onClick={handleStripePayment}
+                        className="btn btn-primary"
+                        style={{ width: '100%', padding: '14px', marginBottom: 16 }}
+                        disabled={cardPaying}
+                      >
+                        {cardPaying ? 'Redirecting to Stripe...' : 'Pay with Stripe Checkout'}
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setUseSimulatedCard(true)}
+                        style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.85rem', fontWeight: 600 }}
+                      >
+                        Use simulated card for testing
+                      </button>
                     </div>
-                    <div className="grid grid-2" style={{ gap: 16 }}>
-                      <div className="form-group">
-                        <label className="form-label">Expiration Date</label>
-                        <input type="text" required maxLength="5" value={cardExpiry} onChange={(e) => { let v = e.target.value; if (v.length === 2 && !v.includes('/')) v += '/'; setCardExpiry(v); }} className="form-input" placeholder="MM/YY" />
+                  ) : (
+                    <form onSubmit={processSimulatedPayment} style={{ borderTop: '1px solid var(--border-color)', paddingTop: 24 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 16 }}>
+                        <h4 style={{ fontSize: '1rem', marginBottom: 0 }}>Simulated Card Information</h4>
+                        {stripePublishableKey && (
+                          <button
+                            type="button"
+                            onClick={() => setUseSimulatedCard(false)}
+                            style={{ background: 'none', border: 'none', color: 'var(--color-primary)', cursor: 'pointer', fontSize: '0.8rem', fontWeight: 600 }}
+                          >
+                            Use Stripe Checkout
+                          </button>
+                        )}
                       </div>
                       <div className="form-group">
-                        <label className="form-label">CVC / CVV</label>
-                        <input type="text" required maxLength="4" value={cardCvc} onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ''))} className="form-input" placeholder="123" />
+                        <label className="form-label">Card Number</label>
+                        <input type="text" required maxLength="19" value={cardNumber} onChange={(e) => { const formatted = e.target.value.replace(/\s?/g, '').replace(/(\d{4})/g, '$1 ').trim(); setCardNumber(formatted); }} className="form-input" placeholder="4242 4242 4242 4242" />
                       </div>
-                    </div>
-                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px', marginTop: 16 }} disabled={cardPaying}>
-                      {cardPaying ? 'Processing Payment...' : `Pay $${payingBooking ? payingBooking.price : invoiceAmount || '0.00'}`}
-                    </button>
-                  </form>
+                      <div className="grid grid-2" style={{ gap: 16 }}>
+                        <div className="form-group">
+                          <label className="form-label">Expiration Date</label>
+                          <input type="text" required maxLength="5" value={cardExpiry} onChange={(e) => { let v = e.target.value; if (v.length === 2 && !v.includes('/')) v += '/'; setCardExpiry(v); }} className="form-input" placeholder="MM/YY" />
+                        </div>
+                        <div className="form-group">
+                          <label className="form-label">CVC / CVV</label>
+                          <input type="text" required maxLength="4" value={cardCvc} onChange={(e) => setCardCvc(e.target.value.replace(/\D/g, ''))} className="form-input" placeholder="123" />
+                        </div>
+                      </div>
+                      <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '14px', marginTop: 16 }} disabled={cardPaying}>
+                        {cardPaying ? 'Processing Payment...' : `Simulate Pay $${payingBooking ? payingBooking.price : invoiceAmount || '0.00'}`}
+                      </button>
+                    </form>
+                  )}
                 </div>
               )}
             </div>
@@ -575,60 +779,158 @@ export default function App() {
         {currentTab === 'portal-login' && (
           <div className="container flex justify-center" style={{ padding: '80px 24px' }}>
             <div className="card animate-fade-in" style={{ width: '100%', maxWidth: 450 }}>
+              {isForgotPassword ? (
+                <div>
+                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                    <div style={{ color: 'var(--color-primary)', display: 'inline-flex', padding: 12, borderRadius: '12px', backgroundColor: 'rgba(13,148,136,0.1)' }}>
+                      <Lock size={28} />
+                    </div>
+                    <h3 style={{ fontSize: '1.75rem', marginTop: 16 }}>Forgot Password</h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>
+                      Reset your Peosta Cleaning portal password
+                    </p>
+                  </div>
+
+                  <form onSubmit={handleForgotPassword}>
+                    <div className="form-group">
+                      <label className="form-label">Email Address</label>
+                      <input
+                        type="email"
+                        required
+                        value={authEmail}
+                        onChange={(e) => setAuthEmail(e.target.value)}
+                        className="form-input"
+                        placeholder="jane@example.com"
+                      />
+                    </div>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px', marginBottom: 16 }}>
+                      Send Reset Link
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setIsForgotPassword(false)}
+                      className="btn btn-outline"
+                      style={{ width: '100%', padding: '12px' }}
+                    >
+                      Back to Sign In
+                    </button>
+                  </form>
+                </div>
+              ) : (
+                <div>
+                  <div style={{ textAlign: 'center', marginBottom: 28 }}>
+                    <div style={{ color: 'var(--color-primary)', display: 'inline-flex', padding: 12, borderRadius: '12px', backgroundColor: 'rgba(13,148,136,0.1)' }}>
+                      <Lock size={28} />
+                    </div>
+                    <h3 style={{ fontSize: '1.75rem', marginTop: 16 }}>
+                      {isRegistering ? 'Create Your Account' : (authRole === 'client' ? 'Client Sign In' : 'Staff Sign In')}
+                    </h3>
+                    <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>Peosta Cleaning Portal Access</p>
+                  </div>
+
+                  {/* Only show client signup toggle — employees can't self-register */}
+                  {authRole === 'employee' && (
+                    <div style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: '0.85rem', color: '#ef4444' }}>
+                      <ShieldAlert size={14} style={{ display: 'inline', marginRight: 6 }} />
+                      Staff accounts are created by the owner. If you need access, contact your manager.
+                    </div>
+                  )}
+
+                  <form onSubmit={isRegistering ? handleRegister : handleLogin}>
+                    {isRegistering && (
+                      <div className="form-group">
+                        <label className="form-label">Full Name</label>
+                        <input type="text" required value={authFullName} onChange={(e) => setAuthFullName(e.target.value)} className="form-input" placeholder="Jane Doe" />
+                      </div>
+                    )}
+                    <div className="form-group">
+                      <label className="form-label">Email Address</label>
+                      <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="form-input" placeholder="jane@example.com" />
+                    </div>
+                    <div className="form-group" style={{ marginBottom: 24 }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: 6 }}>
+                        <label className="form-label" style={{ marginBottom: 0 }}>Password</label>
+                        {!isRegistering && (
+                          <button
+                            type="button"
+                            onClick={() => setIsForgotPassword(true)}
+                            style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontSize: '0.8rem', fontWeight: 600 }}
+                          >
+                            Forgot Password?
+                          </button>
+                        )}
+                      </div>
+                      <div style={{ position: 'relative' }}>
+                        <input type={showPassword ? 'text' : 'password'} required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="form-input" placeholder="••••••••" />
+                        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
+                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        </button>
+                      </div>
+                    </div>
+                    <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
+                      {isRegistering ? 'Create Account' : 'Sign In'}
+                    </button>
+                  </form>
+
+                  {/* Client can self-register; employees cannot */}
+                  {authRole === 'client' && (
+                    <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.9rem' }}>
+                      <span style={{ color: 'var(--text-muted)' }}>
+                        {isRegistering ? 'Already have an account?' : "New client? Create an account to track your bookings."}
+                      </span>{' '}
+                      <button onClick={() => setIsRegistering(!isRegistering)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600 }}>
+                        {isRegistering ? 'Sign In Instead' : 'Sign Up Free'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {currentTab === 'reset-password-form' && (
+          <div className="container flex justify-center" style={{ padding: '80px 24px' }}>
+            <div className="card animate-fade-in" style={{ width: '100%', maxWidth: 450 }}>
               <div style={{ textAlign: 'center', marginBottom: 28 }}>
                 <div style={{ color: 'var(--color-primary)', display: 'inline-flex', padding: 12, borderRadius: '12px', backgroundColor: 'rgba(13,148,136,0.1)' }}>
                   <Lock size={28} />
                 </div>
-                <h3 style={{ fontSize: '1.75rem', marginTop: 16 }}>
-                  {isRegistering ? 'Create Your Account' : (authRole === 'client' ? 'Client Sign In' : 'Staff Sign In')}
-                </h3>
-                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>Peosta Cleaning Portal Access</p>
+                <h3 style={{ fontSize: '1.75rem', marginTop: 16 }}>Set New Password</h3>
+                <p style={{ color: 'var(--text-muted)', fontSize: '0.9rem', marginTop: 4 }}>
+                  Enter your new secure password below
+                </p>
               </div>
 
-              {/* Only show client signup toggle — employees can't self-register */}
-              {authRole === 'employee' && (
-                <div style={{ backgroundColor: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', borderRadius: 8, padding: '10px 14px', marginBottom: 20, fontSize: '0.85rem', color: '#ef4444' }}>
-                  <ShieldAlert size={14} style={{ display: 'inline', marginRight: 6 }} />
-                  Staff accounts are created by the owner. If you need access, contact your manager.
-                </div>
-              )}
-
-              <form onSubmit={isRegistering ? handleRegister : handleLogin}>
-                {isRegistering && (
-                  <div className="form-group">
-                    <label className="form-label">Full Name</label>
-                    <input type="text" required value={authFullName} onChange={(e) => setAuthFullName(e.target.value)} className="form-input" placeholder="Jane Doe" />
-                  </div>
-                )}
+              <form onSubmit={handleUpdatePassword}>
                 <div className="form-group">
-                  <label className="form-label">Email Address</label>
-                  <input type="email" required value={authEmail} onChange={(e) => setAuthEmail(e.target.value)} className="form-input" placeholder="jane@example.com" />
+                  <label className="form-label">New Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength="6"
+                    value={newPassword}
+                    onChange={(e) => setNewPassword(e.target.value)}
+                    className="form-input"
+                    placeholder="••••••••"
+                  />
                 </div>
                 <div className="form-group" style={{ marginBottom: 24 }}>
-                  <label className="form-label">Password</label>
-                  <div style={{ position: 'relative' }}>
-                    <input type={showPassword ? 'text' : 'password'} required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="form-input" placeholder="••••••••" />
-                    <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                      {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
-                    </button>
-                  </div>
+                  <label className="form-label">Confirm New Password</label>
+                  <input
+                    type="password"
+                    required
+                    minLength="6"
+                    value={confirmPassword}
+                    onChange={(e) => setConfirmPassword(e.target.value)}
+                    className="form-input"
+                    placeholder="••••••••"
+                  />
                 </div>
-                <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }}>
-                  {isRegistering ? 'Create Account' : 'Sign In'}
+                <button type="submit" className="btn btn-primary" style={{ width: '100%', padding: '12px' }} disabled={updatingPassword}>
+                  {updatingPassword ? 'Updating Password...' : 'Update Password'}
                 </button>
               </form>
-
-              {/* Client can self-register; employees cannot */}
-              {authRole === 'client' && (
-                <div style={{ textAlign: 'center', marginTop: 24, fontSize: '0.9rem' }}>
-                  <span style={{ color: 'var(--text-muted)' }}>
-                    {isRegistering ? 'Already have an account?' : "New client? Create an account to track your bookings."}
-                  </span>{' '}
-                  <button onClick={() => setIsRegistering(!isRegistering)} style={{ background: 'none', border: 'none', cursor: 'pointer', color: 'var(--color-primary)', fontWeight: 600 }}>
-                    {isRegistering ? 'Sign In Instead' : 'Sign Up Free'}
-                  </button>
-                </div>
-              )}
             </div>
           </div>
         )}

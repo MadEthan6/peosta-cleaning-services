@@ -25,10 +25,48 @@ export default function OwnerSettings() {
   const [newDiscount, setNewDiscount] = useState(10);
   const [addingCode, setAddingCode] = useState(false);
 
+  // Stripe keys state
+  const [stripePublishableKey, setStripePublishableKey] = useState('');
+  const [stripeSecretKey, setStripeSecretKey] = useState('');
+  const [savingStripe, setSavingStripe] = useState(false);
+  const [savedStripe, setSavedStripe] = useState(false);
+
   useEffect(() => {
     fetchRates();
     fetchPromoCodes();
+    fetchStripeKeys();
   }, []);
+
+  const fetchStripeKeys = async () => {
+    try {
+      const { data } = await supabase.from('business_settings').select('*').eq('id', 1).maybeSingle();
+      if (data) {
+        setStripePublishableKey(data.stripe_publishable_key || '');
+        setStripeSecretKey(data.stripe_secret_key || '');
+      }
+    } catch (err) {
+      console.error('Error fetching Stripe keys:', err);
+    }
+  };
+
+  const handleSaveStripe = async () => {
+    setSavingStripe(true);
+    try {
+      const { error } = await supabase.from('business_settings').upsert({
+        id: 1,
+        stripe_publishable_key: stripePublishableKey,
+        stripe_secret_key: stripeSecretKey,
+        updated_at: new Date().toISOString()
+      }, { onConflict: 'id' });
+      if (error) throw error;
+      setSavedStripe(true);
+      setTimeout(() => setSavedStripe(false), 3000);
+    } catch (err) {
+      alert('Error saving Stripe keys: ' + err.message);
+    } finally {
+      setSavingStripe(false);
+    }
+  };
 
   const fetchRates = async () => {
     const { data } = await supabase.from('pricing_rates').select('*').eq('id', 1).maybeSingle();
@@ -266,6 +304,57 @@ export default function OwnerSettings() {
               </div>
             ))}
           </div>
+        )}
+      </div>
+
+      {/* Stripe & Payment Keys Configuration */}
+      <div className="card dashboard-card" style={{ marginTop: 24 }}>
+        <h3 style={{ fontSize: '1.4rem', color: 'white', marginBottom: 6, display: 'flex', alignItems: 'center', gap: 8 }}>
+          💳 Stripe API Configuration
+        </h3>
+        <p style={{ color: '#64748b', fontSize: '0.85rem', marginBottom: 20 }}>
+          Enter your Stripe API credentials to activate real payments. Your publishable key initializes Stripe Checkout on the frontend, and the secret key is handled securely on the backend.
+        </p>
+
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 16, marginBottom: 20 }}>
+          <div>
+            <label style={{ color: '#cbd5e1', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+              Stripe Publishable Key (pk_test_...)
+            </label>
+            <input
+              type="text"
+              value={stripePublishableKey}
+              onChange={(e) => setStripePublishableKey(e.target.value.trim())}
+              placeholder="pk_test_51P..."
+              style={inputStyle}
+            />
+          </div>
+          <div>
+            <label style={{ color: '#cbd5e1', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>
+              Stripe Secret Key (sk_test_...)
+            </label>
+            <input
+              type="password"
+              value={stripeSecretKey}
+              onChange={(e) => setStripeSecretKey(e.target.value.trim())}
+              placeholder="sk_test_51P..."
+              style={inputStyle}
+            />
+          </div>
+        </div>
+
+        <button
+          onClick={handleSaveStripe}
+          disabled={savingStripe}
+          className="btn btn-primary"
+          style={{ width: '100%', padding: 12, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}
+        >
+          <Save size={18} /> {savingStripe ? 'Saving keys...' : savedStripe ? '✓ Keys Saved!' : 'Save Stripe Credentials'}
+        </button>
+        {savedStripe && (
+          <p style={{ textAlign: 'center', color: '#10b981', fontSize: '0.85rem', marginTop: 8 }}>
+            ✓ Stripe keys saved successfully.
+          </p>
         )}
       </div>
     </div>

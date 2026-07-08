@@ -30,6 +30,50 @@ export default function App() {
   const [loadingProfile, setLoadingProfile] = useState(false);
   const [simulatedRole, setSimulatedRole] = useState(null);
 
+  // Custom Toast Notification System
+  const [toasts, setToasts] = useState([]);
+
+  const addToast = (message, type = 'info') => {
+    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+    setToasts(prev => [...prev, { id, message, type }]);
+    setTimeout(() => {
+      removeToast(id);
+    }, 4500);
+  };
+
+  const removeToast = (id) => {
+    setToasts(prev => prev.filter(t => t.id !== id));
+  };
+
+  useEffect(() => {
+    const originalAlert = window.alert;
+    window.alert = (msg) => {
+      const lower = msg.toLowerCase();
+      // Determine type based on keywords
+      let type = 'info';
+      if (lower.includes('error') || lower.includes('failed') || lower.includes('invalid') || lower.includes('missing')) {
+        type = 'error';
+      } else if (lower.includes('success') || lower.includes('applied') || lower.includes('completed') || lower.includes('sent')) {
+        type = 'success';
+      } else if (lower.includes('warning') || lower.includes('please fill') || lower.includes('⚠️')) {
+        type = 'warning';
+      }
+      addToast(msg, type);
+    };
+
+    window.toast = {
+      success: (msg) => addToast(msg, 'success'),
+      error: (msg) => addToast(msg, 'error'),
+      info: (msg) => addToast(msg, 'info'),
+      warning: (msg) => addToast(msg, 'warning')
+    };
+
+    return () => {
+      window.alert = originalAlert;
+      delete window.toast;
+    };
+  }, []);
+
   // Auth states
   const [authEmail, setAuthEmail] = useState('');
   const [authPassword, setAuthPassword] = useState('');
@@ -1439,6 +1483,72 @@ export default function App() {
           </div>
         </footer>
       )}
+
+      {/* Toast Container */}
+      <div style={{
+        position: 'fixed', top: 24, right: 24, zIndex: 9999,
+        display: 'flex', flexDirection: 'column', gap: 10,
+        width: 'calc(100% - 48px)', maxWidth: 360, pointerEvents: 'none'
+      }}>
+        <style dangerouslySetInnerHTML={{__html: `
+          @keyframes slideInToast {
+            from { transform: translateX(120%); opacity: 0; }
+            to { transform: translateX(0); opacity: 1; }
+          }
+          .toast-notification {
+            animation: slideInToast 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+          }
+        `}} />
+        {toasts.map(t => {
+          const colors = {
+            success: { bg: '#064e3b', border: '#059669', text: '#ecfdf5', icon: '✅' },
+            error: { bg: '#7f1d1d', border: '#dc2626', text: '#fef2f2', icon: '❌' },
+            info: { bg: '#1e3a8a', border: '#2563eb', text: '#eff6ff', icon: 'ℹ️' },
+            warning: { bg: '#78350f', border: '#d97706', text: '#fffbeb', icon: '⚠️' }
+          }[t.type] || { bg: '#1e293b', border: '#475569', text: '#f8fafc', icon: '🔔' };
+
+          return (
+            <div
+              key={t.id}
+              className="toast-notification"
+              style={{
+                pointerEvents: 'auto',
+                background: colors.bg,
+                borderLeft: `6px solid ${colors.border}`,
+                borderRadius: 12,
+                padding: '16px 20px',
+                color: colors.text,
+                boxShadow: '0 10px 15px -3px rgba(0, 0, 0, 0.5), 0 4px 6px -2px rgba(0, 0, 0, 0.3)',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'space-between',
+                gap: 16,
+                backdropFilter: 'blur(8px)',
+                border: '1px solid rgba(255,255,255,0.05)'
+              }}
+            >
+              <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                <span style={{ fontSize: '1.25rem', display: 'flex', alignSelf: 'center' }}>{colors.icon}</span>
+                <div style={{ fontSize: '0.9rem', fontWeight: 600, lineHeight: 1.4 }}>
+                  {t.message}
+                </div>
+              </div>
+              <button
+                onClick={() => removeToast(t.id)}
+                style={{
+                  background: 'none', border: 'none', color: colors.text, opacity: 0.5,
+                  cursor: 'pointer', fontSize: '1.25rem', fontWeight: 'bold', padding: 0,
+                  lineHeight: 1, outline: 'none'
+                }}
+                onMouseEnter={(e) => e.target.style.opacity = 1}
+                onMouseLeave={(e) => e.target.style.opacity = 0.5}
+              >
+                ×
+              </button>
+            </div>
+          );
+        })}
+      </div>
     </div>
   );
 }

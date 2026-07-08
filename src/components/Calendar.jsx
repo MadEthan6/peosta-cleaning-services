@@ -1,7 +1,8 @@
-import React, { useState } from 'react';
-import { ChevronLeft, ChevronRight, Calendar as CalendarIcon, Clock, Shield, Sparkles } from 'lucide-react';
+import React, { useState, useEffect } from 'react';
+import { ChevronLeft, ChevronRight, Clock, RefreshCw, Tag } from 'lucide-react';
+import { supabase } from '../supabaseClient';
 
-const PACKAGES = [
+const DEFAULT_PACKAGES = [
   { id: 'standard', name: 'Standard Home Cleaning', pricePerSqFt: 0.12, icon: '🏠', desc: 'Dusting, vacuuming, mopping, bathrooms, kitchen, and tidying up.' },
   { id: 'deep', name: 'Deep Home Cleaning', pricePerSqFt: 0.20, icon: '✨', desc: 'Standard cleaning + baseboards, inside oven/fridge, cabinets, and windows.' },
   { id: 'commercial', name: 'Commercial Office Cleaning', pricePerSqFt: 0.15, icon: '🏢', desc: 'Desks, trash removal, restrooms, breakrooms, and high-traffic floor care.' }
@@ -9,17 +10,30 @@ const PACKAGES = [
 
 const TIME_SLOTS = ['08:00 AM', '11:00 AM', '02:00 PM', '05:00 PM'];
 
-export default function Calendar({ onBookingComplete }) {
-  const [selectedPackage, setSelectedPackage] = useState(PACKAGES[0]);
+const FREQUENCY_OPTIONS = [
+  { id: 'one-time', label: 'One-Time', icon: '📅', desc: 'Single cleaning visit' },
+  { id: 'weekly', label: 'Weekly', icon: '🔄', desc: 'Every week — save 10%' },
+  { id: 'bi-weekly', label: 'Bi-Weekly', icon: '📆', desc: 'Every 2 weeks — save 5%' },
+  { id: 'monthly', label: 'Monthly', icon: '🗓️', desc: 'Once a month' },
+];
+
+const FREQUENCY_DISCOUNT = { 'one-time': 0, 'weekly': 0.10, 'bi-weekly': 0.05, 'monthly': 0 };
+
+export default function BookingCalendar({ onBookingComplete }) {
+  const [packages, setPackages] = useState(DEFAULT_PACKAGES);
+  const [selectedPackage, setSelectedPackage] = useState(DEFAULT_PACKAGES[0]);
   const [sqFt, setSqFt] = useState(1500);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
+  const [frequency, setFrequency] = useState('one-time');
   const [clientName, setClientName] = useState('');
   const [clientEmail, setClientEmail] = useState('');
   const [clientPhone, setClientPhone] = useState('');
   const [clientAddress, setClientAddress] = useState('');
-  
-  // Basic date math
+  const [promoCode, setPromoCode] = useState('');
+  const [promoApplied, setPromoApplied] = useState(null);
+  const [promoLoading, setPromoLoading] = useState(false);
+
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -30,30 +44,73 @@ export default function Calendar({ onBookingComplete }) {
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
   const firstDayIndex = getFirstDayOfMonth(currentMonth, currentYear);
 
+  // Fetch dynamic pricing rates from DB
+  useEffect(() => {
+    const fetchRates = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('pricing_rates')
+          .select('*')
+          .eq('id', 1)
+          .maybeSingle();
+        
+        if (data && !error) {
+          const updatedPackages = [
+            { ...DEFAULT_PACKAGES[0], pricePerSqFt: parseFloat(data.standard_rate) },
+            { ...DEFAULT_PACKAGES[1], pricePerSqFt: parseFloat(data.deep_rate) },
+            { ...DEFAULT_PACKAGES[2], pricePerSqFt: parseFloat(data.commercial_rate) },
+          ];
+          setPackages(updatedPackages);
+          setSelectedPackage(updatedPackages[0]);
+        }
+      } catch (err) {
+        console.log('Using default rates:', err.message);
+      }
+    };
+    fetchRates();
+  }, []);
+
   const prevMonth = () => {
-    if (currentMonth === 0) {
-      setCurrentMonth(11);
-      setCurrentYear(prev => prev - 1);
-    } else {
-      setCurrentMonth(prev => prev - 1);
-    }
+    if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(prev => prev - 1); }
+    else setCurrentMonth(prev => prev - 1);
   };
-
   const nextMonth = () => {
-    if (currentMonth === 11) {
-      setCurrentMonth(0);
-      setCurrentYear(prev => prev + 1);
-    } else {
-      setCurrentMonth(prev => prev + 1);
-    }
+    if (currentMonth === 11) { setCurrentMonth(0); setCurrentYear(prev => prev + 1); }
+    else setCurrentMonth(prev => prev + 1);
   };
 
-  const calculatedPrice = Math.max(90, Math.round(sqFt * selectedPackage.pricePerSqFt));
+  const basePrice = Math.max(90, Math.round(sqFt * selectedPackage.pricePerSqFt));
+  const freqDiscount = FREQUENCY_DISCOUNT[frequency] || 0;
+  const promoDiscount = promoApplied ? promoApplied.discount_percent / 100 : 0;
+  const discountedPrice = Math.round(basePrice * (1 - freqDiscount) * (1 - promoDiscount));
 
   const handleDayClick = (day) => {
     const date = new Date(currentYear, currentMonth, day);
-    if (date >= new Date().setHours(0,0,0,0)) {
-      setSelectedDate(date);
+    if (date >= new Date().setHours(0, 0, 0, 0)) setSelectedDate(date);
+  };
+
+  const handleApplyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    try {
+      const { data, error } = await supabase
+        .from('promo_codes')
+        .select('*')
+        .eq('code', promoCode.trim().toUpperCase())
+        .eq('active', true)
+        .maybeSingle();
+
+      if (error || !data) {
+        alert('Invalid or expired promo code.');
+        setPromoApplied(null);
+      } else {
+        setPromoApplied(data);
+        alert(`Promo code applied! ${data.discount_percent}% off your booking.`);
+      }
+    } catch (err) {
+      alert('Error verifying promo code.');
+    } finally {
+      setPromoLoading(false);
     }
   };
 
@@ -71,7 +128,9 @@ export default function Calendar({ onBookingComplete }) {
       clientAddress,
       servicePackage: selectedPackage.name,
       scheduledAt: new Date(selectedDate.getFullYear(), selectedDate.getMonth(), selectedDate.getDate(), parseInt(selectedTime)),
-      price: calculatedPrice,
+      price: discountedPrice,
+      frequency,
+      promoCode: promoApplied?.code || null,
       status: 'pending',
       paymentStatus: 'unpaid'
     };
@@ -79,32 +138,28 @@ export default function Calendar({ onBookingComplete }) {
     onBookingComplete(bookingDetails);
   };
 
-  const monthNames = [
-    'January', 'February', 'March', 'April', 'May', 'June',
-    'July', 'August', 'September', 'October', 'November', 'December'
-  ];
+  const monthNames = ['January','February','March','April','May','June','July','August','September','October','November','December'];
 
   return (
     <div className="container animate-fade-in" style={{ padding: '40px 24px' }}>
       <div style={{ textAlign: 'center', marginBottom: 40 }}>
         <h2 style={{ fontSize: '2.5rem', marginBottom: 12 }}>Schedule Your Cleaning</h2>
         <p style={{ color: 'var(--text-muted)', maxWidth: 600, margin: '0 auto' }}>
-          Select a package, customize your size, pick a convenient date, and secure your booking in minutes.
+          Select a package, choose your frequency, pick a date, and secure your booking in minutes.
         </p>
       </div>
 
       <div className="grid grid-2">
-        {/* Step 1: Package & Details */}
-        <div className="card">
-          <h3 style={{ fontSize: '1.4rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ color: 'var(--color-primary)' }}>1.</span> Customize Services
-          </h3>
-          
-          <div className="form-group">
-            <label className="form-label">Select Cleaning Package</label>
+        {/* Left Column: Package, Frequency, Size */}
+        <div style={{ display: 'flex', flexDirection: 'column', gap: 24 }}>
+          {/* Step 1: Package */}
+          <div className="card">
+            <h3 style={{ fontSize: '1.4rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--color-primary)' }}>1.</span> Choose Your Cleaning
+            </h3>
             <div className="flex flex-col gap-4">
-              {PACKAGES.map((pkg) => (
-                <div 
+              {packages.map((pkg) => (
+                <div
                   key={pkg.id}
                   onClick={() => setSelectedPackage(pkg)}
                   style={{
@@ -120,7 +175,12 @@ export default function Calendar({ onBookingComplete }) {
                 >
                   <span style={{ fontSize: '2rem' }}>{pkg.icon}</span>
                   <div>
-                    <h4 style={{ color: selectedPackage.id === pkg.id ? 'var(--color-primary)' : 'inherit' }}>{pkg.name}</h4>
+                    <h4 style={{ color: selectedPackage.id === pkg.id ? 'var(--color-primary)' : 'inherit' }}>
+                      {pkg.name}
+                      <span style={{ fontSize: '0.8rem', fontWeight: 400, marginLeft: 8, color: 'var(--text-muted)' }}>
+                        (${pkg.pricePerSqFt}/sq ft)
+                      </span>
+                    </h4>
                     <p style={{ fontSize: '0.85rem', color: 'var(--text-muted)', marginTop: 4 }}>{pkg.desc}</p>
                   </div>
                 </div>
@@ -128,44 +188,121 @@ export default function Calendar({ onBookingComplete }) {
             </div>
           </div>
 
-          <div className="form-group" style={{ marginTop: 24 }}>
-            <div className="flex justify-between form-label">
-              <label>Home/Office Size (Sq Ft)</label>
-              <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{sqFt} Sq Ft</span>
+          {/* Step 2: Frequency */}
+          <div className="card">
+            <h3 style={{ fontSize: '1.4rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
+              <span style={{ color: 'var(--color-primary)' }}>2.</span> <RefreshCw size={20} /> Cleaning Frequency
+            </h3>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 12 }}>
+              {FREQUENCY_OPTIONS.map((opt) => (
+                <div
+                  key={opt.id}
+                  onClick={() => setFrequency(opt.id)}
+                  style={{
+                    padding: 16,
+                    borderRadius: 'var(--radius)',
+                    border: `2px solid ${frequency === opt.id ? 'var(--color-primary)' : 'var(--border-color)'}`,
+                    backgroundColor: frequency === opt.id ? 'rgba(13, 148, 136, 0.05)' : 'white',
+                    cursor: 'pointer',
+                    textAlign: 'center',
+                    transition: 'var(--transition)'
+                  }}
+                >
+                  <div style={{ fontSize: '1.5rem', marginBottom: 4 }}>{opt.icon}</div>
+                  <div style={{ fontWeight: 600, fontSize: '0.9rem', color: frequency === opt.id ? 'var(--color-primary)' : 'inherit' }}>{opt.label}</div>
+                  <div style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 2 }}>{opt.desc}</div>
+                </div>
+              ))}
             </div>
-            <input 
-              type="range" 
-              min="500" 
-              max="6000" 
-              step="100" 
-              value={sqFt} 
+
+            {freqDiscount > 0 && (
+              <div style={{ marginTop: 12, padding: '8px 16px', borderRadius: 'var(--radius)', backgroundColor: 'rgba(16,185,129,0.1)', color: '#059669', fontWeight: 600, fontSize: '0.9rem' }}>
+                🎉 {Math.round(freqDiscount * 100)}% recurring discount applied!
+              </div>
+            )}
+          </div>
+
+          {/* Size Slider */}
+          <div className="card">
+            <div className="flex justify-between form-label" style={{ marginBottom: 8 }}>
+              <label>Home/Office Size (Sq Ft)</label>
+              <span style={{ color: 'var(--color-primary)', fontWeight: 700 }}>{sqFt.toLocaleString()} Sq Ft</span>
+            </div>
+            <input
+              type="range" min="500" max="6000" step="100" value={sqFt}
               onChange={(e) => setSqFt(parseInt(e.target.value))}
               style={{ width: '100%', accentColor: 'var(--color-primary)' }}
             />
             <div className="flex justify-between" style={{ fontSize: '0.75rem', color: 'var(--text-muted)', marginTop: 4 }}>
-              <span>500 sq ft</span>
-              <span>6,000+ sq ft</span>
+              <span>500 sq ft</span><span>6,000+ sq ft</span>
             </div>
-          </div>
 
-          <div className="gradient-fresh" style={{ padding: 24, borderRadius: 'var(--radius)', color: 'white', marginTop: 32 }}>
-            <div className="flex justify-between align-center">
-              <div>
-                <span style={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', opacity: 0.9 }}>ESTIMATED PRICE</span>
-                <h3 style={{ fontSize: '2rem', color: 'white', marginTop: 4 }}>${calculatedPrice}</h3>
+            {/* Price Summary */}
+            <div className="gradient-fresh" style={{ padding: 24, borderRadius: 'var(--radius)', color: 'white', marginTop: 20 }}>
+              <div className="flex justify-between align-center">
+                <div>
+                  <span style={{ textTransform: 'uppercase', fontSize: '0.75rem', fontWeight: 700, letterSpacing: '0.05em', opacity: 0.9 }}>ESTIMATED PRICE</span>
+                  {(freqDiscount > 0 || promoDiscount > 0) && (
+                    <div style={{ textDecoration: 'line-through', opacity: 0.6, fontSize: '1rem', marginTop: 2 }}>${basePrice}</div>
+                  )}
+                  <h3 style={{ fontSize: '2rem', color: 'white', marginTop: 4 }}>${discountedPrice}</h3>
+                </div>
+                <div style={{ textAlign: 'right', fontSize: '0.85rem', opacity: 0.9 }}>
+                  <p>{frequency === 'one-time' ? 'One-time payment' : `Billed ${frequency}`}</p>
+                  <p>Includes all supplies</p>
+                </div>
               </div>
-              <div style={{ textAlign: 'right', fontSize: '0.85rem', opacity: 0.9 }}>
-                <p>Includes all equipment</p>
-                <p>& cleaning supplies</p>
+            </div>
+
+            {/* Promo Code */}
+            <div style={{ marginTop: 20 }}>
+              <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
+                <Tag size={16} /> Promo Code (Optional)
+              </label>
+              <div style={{ display: 'flex', gap: 8 }}>
+                <input
+                  type="text"
+                  value={promoCode}
+                  onChange={(e) => setPromoCode(e.target.value)}
+                  className="form-input"
+                  placeholder="e.g. WELCOME10"
+                  disabled={!!promoApplied}
+                  style={{ flexGrow: 1, textTransform: 'uppercase' }}
+                />
+                {promoApplied ? (
+                  <button
+                    type="button"
+                    onClick={() => { setPromoApplied(null); setPromoCode(''); }}
+                    className="btn btn-outline"
+                    style={{ borderColor: '#ef4444', color: '#ef4444', padding: '10px 16px', whiteSpace: 'nowrap' }}
+                  >
+                    Remove
+                  </button>
+                ) : (
+                  <button
+                    type="button"
+                    onClick={handleApplyPromo}
+                    className="btn btn-secondary"
+                    disabled={promoLoading || !promoCode.trim()}
+                    style={{ padding: '10px 16px', whiteSpace: 'nowrap' }}
+                  >
+                    {promoLoading ? '...' : 'Apply'}
+                  </button>
+                )}
               </div>
+              {promoApplied && (
+                <div style={{ marginTop: 6, fontSize: '0.85rem', color: '#059669', fontWeight: 600 }}>
+                  ✓ Code "{promoApplied.code}" — {promoApplied.discount_percent}% off applied!
+                </div>
+              )}
             </div>
           </div>
         </div>
 
-        {/* Step 2: Date & Contact Details */}
+        {/* Right Column: Date Picker & Contact */}
         <div className="card">
           <h3 style={{ fontSize: '1.4rem', marginBottom: 20, display: 'flex', alignItems: 'center', gap: 10 }}>
-            <span style={{ color: 'var(--color-primary)' }}>2.</span> Choose Time & Booking Details
+            <span style={{ color: 'var(--color-primary)' }}>3.</span> Pick a Date & Time
           </h3>
 
           {/* Month Selector */}
@@ -182,20 +319,17 @@ export default function Calendar({ onBookingComplete }) {
             {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
               <div key={d} className="calendar-day-header">{d}</div>
             ))}
-            
             {Array.from({ length: firstDayIndex }).map((_, i) => (
               <div key={`empty-${i}`} />
             ))}
-
             {Array.from({ length: daysInMonth }).map((_, i) => {
               const day = i + 1;
               const date = new Date(currentYear, currentMonth, day);
               const isPast = date < new Date().setHours(0, 0, 0, 0);
               const isSelected = selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear;
-
               return (
-                <div 
-                  key={day} 
+                <div
+                  key={day}
                   onClick={() => !isPast && handleDayClick(day)}
                   className={`calendar-day-cell ${isPast ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
                 >
@@ -212,7 +346,7 @@ export default function Calendar({ onBookingComplete }) {
               </label>
               <div className="calendar-slots">
                 {TIME_SLOTS.map((slot) => (
-                  <div 
+                  <div
                     key={slot}
                     onClick={() => setSelectedTime(slot)}
                     className={`calendar-slot-button ${selectedTime === slot ? 'selected' : ''}`}
@@ -225,8 +359,8 @@ export default function Calendar({ onBookingComplete }) {
           )}
 
           <form onSubmit={handleSubmit} style={{ marginTop: 32 }}>
-            <h4 style={{ fontSize: '1.1rem', marginBottom: 16 }}>Contact & Location Information</h4>
-            
+            <h4 style={{ fontSize: '1.1rem', marginBottom: 16 }}>4. Your Contact & Location</h4>
+
             <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
                 <label className="form-label">Full Name</label>
@@ -249,13 +383,21 @@ export default function Calendar({ onBookingComplete }) {
               </div>
             </div>
 
-            <button 
-              type="submit" 
-              className="btn btn-primary" 
-              style={{ width: '100%', padding: '14px', fontSize: '1.05rem', marginTop: 16 }}
+            <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', padding: 16, border: '1px solid var(--border-color)', marginBottom: 16, fontSize: '0.9rem' }}>
+              {frequency !== 'one-time' ? (
+                <p>💳 <strong>Recurring booking</strong> — You'll be directed to Stripe to set up automatic {frequency} payments of <strong>${discountedPrice}</strong>. Cancel anytime.</p>
+              ) : (
+                <p>💳 <strong>One-time payment</strong> — You'll pay <strong>${discountedPrice}</strong> securely via Stripe after confirming your booking details.</p>
+              )}
+            </div>
+
+            <button
+              type="submit"
+              className="btn btn-primary"
+              style={{ width: '100%', padding: '14px', fontSize: '1.05rem' }}
               disabled={!selectedDate || !selectedTime}
             >
-              Book & Pay ${calculatedPrice}
+              {frequency !== 'one-time' ? `Set Up ${frequency.charAt(0).toUpperCase() + frequency.slice(1)} Service — $${discountedPrice}` : `Book & Pay $${discountedPrice}`}
             </button>
           </form>
         </div>

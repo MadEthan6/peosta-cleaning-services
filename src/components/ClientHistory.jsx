@@ -147,7 +147,7 @@ export default function ClientHistory({ clientEmail, clientId }) {
                   <h3 style={{ color: 'white', fontSize: '1.3rem', marginBottom: 4 }}>{selected.service_package}</h3>
                   <p style={{ color: '#94a3b8', fontSize: '0.85rem' }}>{selected.address}</p>
                 </div>
-                <button onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
+                <button aria-label="Close" onClick={() => setSelected(null)} style={{ background: 'none', border: 'none', color: '#64748b', cursor: 'pointer', fontSize: '1.2rem' }}>✕</button>
               </div>
 
               <div style={{ display: 'flex', flexDirection: 'column', gap: 8, marginBottom: 20, fontSize: '0.9rem' }}>

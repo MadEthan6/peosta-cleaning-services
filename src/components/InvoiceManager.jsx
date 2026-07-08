@@ -13,16 +13,18 @@ export default function InvoiceManager() {
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
   const [clients, setClients] = useState([]);
+  const [employees, setEmployees] = useState([]);
 
   // Form state
   const [form, setForm] = useState({
-    client_name: '', client_email: '', amount: '', notes: ''
+    client_name: '', client_email: '', amount: '', notes: '', employee_id: ''
   });
   const [creating, setCreating] = useState(false);
 
   useEffect(() => {
     fetchInvoices();
     fetchClients();
+    fetchEmployees();
   }, []);
 
   const fetchClients = async () => {
@@ -39,12 +41,26 @@ export default function InvoiceManager() {
     }
   };
 
+  const fetchEmployees = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'employee')
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      setEmployees(data || []);
+    } catch (err) {
+      console.error('Error fetching employees for dropdown:', err.message);
+    }
+  };
+
   const fetchInvoices = async () => {
     setLoading(true);
     try {
       const { data, error } = await supabase
         .from('invoices')
-        .select('*')
+        .select('*, employee:profiles!employee_id(*)')
         .order('created_at', { ascending: false });
       if (error) throw error;
       setInvoices(data || []);
@@ -64,10 +80,11 @@ export default function InvoiceManager() {
         client_email: form.client_email,
         amount: parseFloat(form.amount),
         notes: form.notes || null,
+        employee_id: form.employee_id || null,
         status: 'unpaid'
       });
       if (error) throw error;
-      setForm({ client_name: '', client_email: '', amount: '', notes: '' });
+      setForm({ client_name: '', client_email: '', amount: '', notes: '', employee_id: '' });
       setShowCreate(false);
       fetchInvoices();
     } catch (err) {
@@ -157,15 +174,30 @@ export default function InvoiceManager() {
                 ))}
               </select>
             </div>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
+            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
+              <div>
+                <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Assigned Cleaner / Staff</label>
+                <select
+                  value={form.employee_id}
+                  onChange={e => setForm(p => ({ ...p, employee_id: e.target.value }))}
+                  style={inputStyle}
+                >
+                  <option value="">-- Optional: Choose Staff --</option>
+                  {employees.map(emp => (
+                    <option key={emp.id} value={emp.id}>
+                      {emp.full_name || 'Staff'} ({emp.email})
+                    </option>
+                  ))}
+                </select>
+              </div>
               <div>
                 <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Amount ($)</label>
                 <input required type="number" min="1" step="0.01" value={form.amount} onChange={e => setForm(p => ({ ...p, amount: e.target.value }))} style={inputStyle} placeholder="150.00" />
               </div>
-              <div>
-                <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
-                <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} style={inputStyle} placeholder="Deep cleaning — 2200 sq ft" />
-              </div>
+            </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Notes (optional)</label>
+              <input type="text" value={form.notes} onChange={e => setForm(p => ({ ...p, notes: e.target.value }))} style={inputStyle} placeholder="Deep cleaning — 2200 sq ft" />
             </div>
             <div style={{ display: 'flex', gap: 12 }}>
               <button type="submit" disabled={creating} className="btn btn-primary" style={{ padding: '10px 24px', display: 'flex', alignItems: 'center', gap: 6 }}>
@@ -196,7 +228,12 @@ export default function InvoiceManager() {
                   <div>
                     <p style={{ color: 'white', fontWeight: 600 }}>{inv.client_name}</p>
                     <p style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{inv.client_email}</p>
-                    {inv.notes && <p style={{ color: '#64748b', fontSize: '0.8rem', marginTop: 2 }}>{inv.notes}</p>}
+                    {inv.notes && <p style={{ color: '#94a3b8', fontSize: '0.8rem', marginTop: 2 }}>📝 {inv.notes}</p>}
+                    {inv.employee && (
+                      <p style={{ color: '#2dd4bf', fontSize: '0.8rem', fontWeight: 600, marginTop: 4 }}>
+                        🧹 Cleaner: {inv.employee.full_name}
+                      </p>
+                    )}
                   </div>
                 </div>
                 <div style={{ display: 'flex', alignItems: 'center', gap: 16, flexWrap: 'wrap' }}>

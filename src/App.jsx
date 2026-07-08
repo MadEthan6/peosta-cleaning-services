@@ -13,6 +13,7 @@ import ClientHistory from './components/ClientHistory';
 import EmployeeAvailability from './components/EmployeeAvailability';
 import ClientOverview from './components/ClientOverview';
 import AccountManager from './components/AccountManager';
+import ClientInvoices from './components/ClientInvoices';
 import {
   Sparkles, Clock, MapPin, User, DollarSign, CheckCircle2,
   Calendar as CalendarIcon, ChevronRight, Image as ImageIcon,
@@ -328,6 +329,34 @@ export default function App() {
     }
   };
 
+  const handlePayInvoiceDirect = async (invoice) => {
+    if (!stripePublishableKey) {
+      alert('Stripe checkout is not configured. Please add Stripe credentials in Settings.');
+      return;
+    }
+    try {
+      const sessionPayload = {
+        amount: parseFloat(invoice.amount),
+        client_name: invoice.client_name,
+        client_email: invoice.client_email,
+        service_package: invoice.notes || 'Peosta Cleaning Services Invoice',
+        success_url: `https://MadEthan6.github.io/peosta-cleaning-services/?payment_success=true&id=${invoice.id}&type=invoice`,
+        cancel_url: window.location.href,
+        invoice_id: invoice.id
+      };
+      
+      const { data, error } = await supabase.functions.invoke('stripe-checkout', { body: sessionPayload });
+      if (error) throw error;
+      if (data?.url) {
+        window.location.href = data.url;
+      } else {
+        throw new Error('Stripe session URL not returned');
+      }
+    } catch (err) {
+      alert('Payment redirect failed: ' + err.message);
+    }
+  };
+
   const handleStripePayment = async (e) => {
     if (e) e.preventDefault();
 
@@ -572,6 +601,7 @@ export default function App() {
     client: [
       { id: 'overview', icon: <LayoutDashboard size={20} />, label: 'Overview' },
       { id: 'history', icon: <History size={20} />, label: 'My Bookings' },
+      { id: 'invoices', icon: <Receipt size={20} />, label: 'My Invoices' },
       { id: 'chat', icon: <MessageSquare size={20} />, label: 'Support Chat' },
     ],
   };
@@ -1346,6 +1376,14 @@ export default function App() {
               {/* ── CLIENT BOOKING HISTORY ── */}
               {dashboardTab === 'history' && currentRole === 'client' && (
                 <ClientHistory clientEmail={profile.email} clientId={profile.id} />
+              )}
+
+              {/* ── CLIENT INVOICES ── */}
+              {dashboardTab === 'invoices' && currentRole === 'client' && (
+                <ClientInvoices 
+                  clientEmail={profile.email} 
+                  onPayInvoice={handlePayInvoiceDirect} 
+                />
               )}
 
               {/* ── CLIENT OVERVIEW (DASHBOARD HOME) ── */}

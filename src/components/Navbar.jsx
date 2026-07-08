@@ -39,17 +39,7 @@ export default function Navbar({ currentTab, setCurrentTab, user, profile, onLog
           >
             <Calendar size={18} /> Book Online
           </button>
-          <button 
-            onClick={() => setCurrentTab('pay')} 
-            style={{ 
-              background: 'none', border: 'none', cursor: 'pointer',
-              fontWeight: currentTab === 'pay' ? 700 : 500,
-              color: currentTab === 'pay' ? 'var(--color-primary)' : 'var(--text-muted)',
-              display: 'flex', alignItems: 'center', gap: 6
-            }}
-          >
-            <CreditCard size={18} /> Pay Invoice
-          </button>
+
         </nav>
 
         <div className="flex align-center gap-4">

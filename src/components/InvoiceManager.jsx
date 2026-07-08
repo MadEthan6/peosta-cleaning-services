@@ -12,6 +12,7 @@ export default function InvoiceManager() {
   const [invoices, setInvoices] = useState([]);
   const [loading, setLoading] = useState(false);
   const [showCreate, setShowCreate] = useState(false);
+  const [clients, setClients] = useState([]);
 
   // Form state
   const [form, setForm] = useState({
@@ -21,7 +22,22 @@ export default function InvoiceManager() {
 
   useEffect(() => {
     fetchInvoices();
+    fetchClients();
   }, []);
+
+  const fetchClients = async () => {
+    try {
+      const { data, error } = await supabase
+        .from('profiles')
+        .select('*')
+        .eq('role', 'client')
+        .order('full_name', { ascending: true });
+      if (error) throw error;
+      setClients(data || []);
+    } catch (err) {
+      console.error('Error fetching clients for dropdown:', err.message);
+    }
+  };
 
   const fetchInvoices = async () => {
     setLoading(true);
@@ -118,15 +134,28 @@ export default function InvoiceManager() {
         <div className="card dashboard-card animate-fade-in" style={{ marginBottom: 24 }}>
           <h3 style={{ color: 'white', fontSize: '1.2rem', marginBottom: 20 }}>Create New Invoice</h3>
           <form onSubmit={handleCreate}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: 16, marginBottom: 16 }}>
-              <div>
-                <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Client Name</label>
-                <input required type="text" value={form.client_name} onChange={e => setForm(p => ({ ...p, client_name: e.target.value }))} style={inputStyle} placeholder="John Doe" />
-              </div>
-              <div>
-                <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Client Email</label>
-                <input required type="email" value={form.client_email} onChange={e => setForm(p => ({ ...p, client_email: e.target.value }))} style={inputStyle} placeholder="john@example.com" />
-              </div>
+            <div style={{ marginBottom: 16 }}>
+              <label style={{ color: '#94a3b8', fontSize: '0.85rem', fontWeight: 600, display: 'block', marginBottom: 6 }}>Select Registered Client</label>
+              <select
+                required
+                value={form.client_email}
+                onChange={e => {
+                  const selectedCli = clients.find(c => c.email === e.target.value);
+                  setForm(p => ({
+                    ...p,
+                    client_email: e.target.value,
+                    client_name: selectedCli ? selectedCli.full_name : ''
+                  }));
+                }}
+                style={inputStyle}
+              >
+                <option value="">-- Choose registered client --</option>
+                {clients.map(cli => (
+                  <option key={cli.id} value={cli.email}>
+                    {cli.full_name || 'Client'} ({cli.email})
+                  </option>
+                ))}
+              </select>
             </div>
             <div style={{ display: 'grid', gridTemplateColumns: '1fr 2fr', gap: 16, marginBottom: 16 }}>
               <div>

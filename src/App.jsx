@@ -616,9 +616,7 @@ export default function App() {
                   <button onClick={() => setCurrentTab('book')} className="btn btn-primary" style={{ padding: '16px 36px', fontSize: '1.1rem', backgroundColor: 'var(--color-primary-light)', color: 'var(--color-secondary)' }}>
                     Book Your Cleaning
                   </button>
-                  <button onClick={() => setCurrentTab('pay')} className="btn btn-outline" style={{ padding: '16px 36px', fontSize: '1.1rem', color: 'white', borderColor: 'white' }}>
-                    Pay Invoice Online
-                  </button>
+
                 </div>
               </div>
               <div style={{ position: 'absolute', top: '-50%', left: '-20%', width: '80%', height: '150%', background: 'radial-gradient(ellipse at center, rgba(45,212,191,0.15) 0%, rgba(13,148,136,0) 70%)', transform: 'rotate(-15deg)', pointerEvents: 'none' }} />
@@ -699,9 +697,15 @@ export default function App() {
           </div>
         )}
 
-        {/* ── BOOK ──────────────────────────────────────────────────────── */}
         {currentTab === 'book' && (
-          <BookingCalendar onBookingComplete={handleBookingComplete} />
+          <BookingCalendar 
+            onBookingComplete={handleBookingComplete} 
+            user={user}
+            profile={profile}
+            onNavigate={setCurrentTab}
+            setAuthRole={setAuthRole}
+            setIsRegistering={setIsRegistering}
+          />
         )}
 
         {/* ── PAY INVOICE ──────────────────────────────────────────────── */}

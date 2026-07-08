@@ -19,10 +19,24 @@ const FREQUENCY_OPTIONS = [
 
 const FREQUENCY_DISCOUNT = { 'one-time': 0, 'weekly': 0.10, 'bi-weekly': 0.05, 'monthly': 0 };
 
-export default function BookingCalendar({ onBookingComplete }) {
+export default function BookingCalendar({ 
+  onBookingComplete, 
+  user, 
+  profile, 
+  onNavigate, 
+  setAuthRole, 
+  setIsRegistering 
+}) {
   const [packages, setPackages] = useState(DEFAULT_PACKAGES);
   const [selectedPackage, setSelectedPackage] = useState(DEFAULT_PACKAGES[0]);
   const [sqFt, setSqFt] = useState(1500);
+
+  useEffect(() => {
+    if (profile) {
+      setClientName(profile.full_name || '');
+      setClientEmail(profile.email || '');
+    }
+  }, [profile]);
   const [selectedDate, setSelectedDate] = useState(null);
   const [selectedTime, setSelectedTime] = useState(null);
   const [frequency, setFrequency] = useState('one-time');
@@ -510,141 +524,178 @@ export default function BookingCalendar({ onBookingComplete }) {
             </div>
           )}
 
-          <form onSubmit={handleSubmit} style={{ marginTop: 32 }}>
-            <h4 style={{ fontSize: '1.1rem', marginBottom: 16 }}>4. Your Contact & Location</h4>
-
-            <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'inherit' }}>Full Name</label>
-                <input 
-                  type="text" 
-                  name="clientName"
-                  value={clientName} 
-                  onChange={(e) => {
-                    setClientName(e.target.value);
-                    if (validationErrors.clientName) setValidationErrors(prev => ({ ...prev, clientName: null }));
-                  }} 
-                  className="form-input" 
-                  placeholder="John Doe"
-                  style={{
-                    borderColor: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'var(--border-color)',
-                    backgroundColor: attemptedSubmit && validationErrors.clientName ? '#fff5f5' : 'white'
+          {!user ? (
+            <div style={{ backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: '12px', padding: '32px 24px', textAlign: 'center', marginTop: 32 }}>
+              <h4 style={{ color: 'white', fontSize: '1.25rem', marginBottom: 8, display: 'flex', alignItems: 'center', justifyContent: 'center', gap: 8 }}>
+                🔐 Account Required to Book
+              </h4>
+              <p style={{ color: '#94a3b8', fontSize: '0.92rem', marginBottom: 24, maxWidth: 440, margin: '0 auto 24px auto', lineHeight: 1.5 }}>
+                To secure your cleaning session, track your history, and authorize recurring appointments, please sign in or register for a free account.
+              </p>
+              <div style={{ display: 'flex', gap: 12, justifyContent: 'center' }}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthRole('client');
+                    setIsRegistering(false);
+                    onNavigate('portal-login');
                   }}
-                />
-                {attemptedSubmit && validationErrors.clientName && (
-                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientName}</span>
-                )}
-              </div>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'inherit' }}>Email Address</label>
-                <input 
-                  type="email" 
-                  name="clientEmail"
-                  value={clientEmail} 
-                  onChange={(e) => {
-                    setClientEmail(e.target.value);
-                    if (validationErrors.clientEmail) setValidationErrors(prev => ({ ...prev, clientEmail: null }));
-                  }} 
-                  className="form-input" 
-                  placeholder="john@example.com"
-                  style={{
-                    borderColor: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'var(--border-color)',
-                    backgroundColor: attemptedSubmit && validationErrors.clientEmail ? '#fff5f5' : 'white'
+                  className="btn btn-primary"
+                  style={{ padding: '10px 24px', fontSize: '0.9rem' }}
+                >
+                  Sign In
+                </button>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setAuthRole('client');
+                    setIsRegistering(true);
+                    onNavigate('portal-login');
                   }}
-                />
-                {attemptedSubmit && validationErrors.clientEmail && (
-                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientEmail}</span>
-                )}
+                  className="btn btn-secondary"
+                  style={{ padding: '10px 24px', fontSize: '0.9rem' }}
+                >
+                  Create Account
+                </button>
               </div>
             </div>
+          ) : (
+            <form onSubmit={handleSubmit} style={{ marginTop: 32 }}>
+              <h4 style={{ fontSize: '1.1rem', marginBottom: 16 }}>4. Your Contact & Location</h4>
 
-            <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
-              <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'inherit' }}>Phone Number</label>
-                <input 
-                  type="tel" 
-                  name="clientPhone"
-                  value={clientPhone} 
-                  onChange={(e) => handlePhoneChange(e.target.value)} 
-                  className="form-input" 
-                  placeholder="(563) 555-0100"
-                  style={{
-                    borderColor: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'var(--border-color)',
-                    backgroundColor: attemptedSubmit && validationErrors.clientPhone ? '#fff5f5' : 'white'
-                  }}
-                />
-                {attemptedSubmit && validationErrors.clientPhone && (
-                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientPhone}</span>
+              <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'inherit' }}>Full Name</label>
+                  <input 
+                    type="text" 
+                    name="clientName"
+                    value={clientName} 
+                    onChange={(e) => {
+                      setClientName(e.target.value);
+                      if (validationErrors.clientName) setValidationErrors(prev => ({ ...prev, clientName: null }));
+                    }} 
+                    className="form-input" 
+                    placeholder="John Doe"
+                    style={{
+                      borderColor: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'var(--border-color)',
+                      backgroundColor: attemptedSubmit && validationErrors.clientName ? '#fff5f5' : 'white'
+                    }}
+                  />
+                  {attemptedSubmit && validationErrors.clientName && (
+                    <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientName}</span>
+                  )}
+                </div>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'inherit' }}>Email Address</label>
+                  <input 
+                    type="email" 
+                    name="clientEmail"
+                    value={clientEmail} 
+                    onChange={(e) => {
+                      setClientEmail(e.target.value);
+                      if (validationErrors.clientEmail) setValidationErrors(prev => ({ ...prev, clientEmail: null }));
+                    }} 
+                    className="form-input" 
+                    placeholder="john@example.com"
+                    style={{
+                      borderColor: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'var(--border-color)',
+                      backgroundColor: attemptedSubmit && validationErrors.clientEmail ? '#fff5f5' : 'white'
+                    }}
+                  />
+                  {attemptedSubmit && validationErrors.clientEmail && (
+                    <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientEmail}</span>
+                  )}
+                </div>
+              </div>
+
+              <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
+                <div className="form-group" style={{ marginBottom: 0 }}>
+                  <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'inherit' }}>Phone Number</label>
+                  <input 
+                    type="tel" 
+                    name="clientPhone"
+                    value={clientPhone} 
+                    onChange={(e) => handlePhoneChange(e.target.value)} 
+                    className="form-input" 
+                    placeholder="(563) 555-0100"
+                    style={{
+                      borderColor: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'var(--border-color)',
+                      backgroundColor: attemptedSubmit && validationErrors.clientPhone ? '#fff5f5' : 'white'
+                    }}
+                  />
+                  {attemptedSubmit && validationErrors.clientPhone && (
+                    <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientPhone}</span>
+                  )}
+                </div>
+                <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
+                  <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'inherit' }}>Service Address</label>
+                  <input 
+                    type="text" 
+                    name="clientAddress"
+                    value={clientAddress} 
+                    onChange={(e) => handleAddressChange(e.target.value)} 
+                    onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
+                    className="form-input" 
+                    placeholder="123 Main St, Peosta, IA"
+                    style={{
+                      borderColor: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'var(--border-color)',
+                      backgroundColor: attemptedSubmit && validationErrors.clientAddress ? '#fff5f5' : 'white'
+                    }}
+                  />
+                  {showSuggestions && addressSuggestions.length > 0 && (
+                    <>
+                      <div onClick={() => setShowSuggestions(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
+                      <div style={{
+                        position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
+                        backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8,
+                        boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', marginTop: 4, padding: 4,
+                        display: 'flex', flexDirection: 'column', gap: 2
+                      }}>
+                        {addressSuggestions.map((sug, i) => (
+                          <div
+                            key={i}
+                            onClick={() => {
+                              setClientAddress(sug.display_name);
+                              setShowSuggestions(false);
+                              setAddressSuggestions([]);
+                            }}
+                            style={{
+                              padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
+                              color: '#e2e8f0', fontSize: '0.85rem', transition: 'all 0.15s',
+                              whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
+                            }}
+                            onMouseEnter={(e) => e.target.style.backgroundColor = '#2dd4bf20'}
+                            onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
+                          >
+                            📍 {sug.display_name}
+                          </div>
+                        ))}
+                      </div>
+                    </>
+                  )}
+                  {attemptedSubmit && validationErrors.clientAddress && (
+                    <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientAddress}</span>
+                  )}
+                </div>
+              </div>
+
+              <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', padding: 16, border: '1px solid var(--border-color)', marginBottom: 16, fontSize: '0.9rem' }}>
+                {frequency !== 'one-time' ? (
+                  <p>💳 <strong>Recurring booking</strong> — You'll be directed to Stripe to set up automatic {frequency} payments of <strong>${discountedPrice}</strong>. Cancel anytime.</p>
+                ) : (
+                  <p>💳 <strong>One-time payment</strong> — You'll pay <strong>${discountedPrice}</strong> securely via Stripe after confirming your booking details.</p>
                 )}
               </div>
-              <div className="form-group" style={{ marginBottom: 0, position: 'relative' }}>
-                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'inherit' }}>Service Address</label>
-                <input 
-                  type="text" 
-                  name="clientAddress"
-                  value={clientAddress} 
-                  onChange={(e) => handleAddressChange(e.target.value)} 
-                  onFocus={() => addressSuggestions.length > 0 && setShowSuggestions(true)}
-                  className="form-input" 
-                  placeholder="123 Main St, Peosta, IA"
-                  style={{
-                    borderColor: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'var(--border-color)',
-                    backgroundColor: attemptedSubmit && validationErrors.clientAddress ? '#fff5f5' : 'white'
-                  }}
-                />
-                {showSuggestions && addressSuggestions.length > 0 && (
-                  <>
-                    <div onClick={() => setShowSuggestions(false)} style={{ position: 'fixed', top: 0, left: 0, right: 0, bottom: 0, zIndex: 90 }} />
-                    <div style={{
-                      position: 'absolute', top: '100%', left: 0, right: 0, zIndex: 100,
-                      backgroundColor: '#1e293b', border: '1px solid #334155', borderRadius: 8,
-                      boxShadow: '0 10px 15px -3px rgba(0,0,0,0.5)', marginTop: 4, padding: 4,
-                      display: 'flex', flexDirection: 'column', gap: 2
-                    }}>
-                      {addressSuggestions.map((sug, i) => (
-                        <div
-                          key={i}
-                          onClick={() => {
-                            setClientAddress(sug.display_name);
-                            setShowSuggestions(false);
-                            setAddressSuggestions([]);
-                          }}
-                          style={{
-                            padding: '10px 12px', borderRadius: 6, cursor: 'pointer',
-                            color: '#e2e8f0', fontSize: '0.85rem', transition: 'all 0.15s',
-                            whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis'
-                          }}
-                          onMouseEnter={(e) => e.target.style.backgroundColor = '#2dd4bf20'}
-                          onMouseLeave={(e) => e.target.style.backgroundColor = 'transparent'}
-                        >
-                          📍 {sug.display_name}
-                        </div>
-                      ))}
-                    </div>
-                  </>
-                )}
-                {attemptedSubmit && validationErrors.clientAddress && (
-                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientAddress}</span>
-                )}
-              </div>
-            </div>
 
-            <div style={{ background: 'var(--bg-card)', borderRadius: 'var(--radius)', padding: 16, border: '1px solid var(--border-color)', marginBottom: 16, fontSize: '0.9rem' }}>
-              {frequency !== 'one-time' ? (
-                <p>💳 <strong>Recurring booking</strong> — You'll be directed to Stripe to set up automatic {frequency} payments of <strong>${discountedPrice}</strong>. Cancel anytime.</p>
-              ) : (
-                <p>💳 <strong>One-time payment</strong> — You'll pay <strong>${discountedPrice}</strong> securely via Stripe after confirming your booking details.</p>
-              )}
-            </div>
-
-            <button
-              type="submit"
-              className="btn btn-primary"
-              style={{ width: '100%', padding: '14px', fontSize: '1.05rem' }}
-            >
-              {frequency !== 'one-time' ? `Set Up ${frequency.charAt(0).toUpperCase() + frequency.slice(1)} Service — $${discountedPrice}` : `Book & Pay $${discountedPrice}`}
-            </button>
-          </form>
+              <button
+                type="submit"
+                className="btn btn-primary"
+                style={{ width: '100%', padding: '14px', fontSize: '1.05rem' }}
+              >
+                {frequency !== 'one-time' ? `Set Up ${frequency.charAt(0).toUpperCase() + frequency.slice(1)} Service — $${discountedPrice}` : `Book & Pay $${discountedPrice}`}
+              </button>
+            </form>
+          )}
         </div>
       </div>
     </div>

@@ -447,8 +447,8 @@ export default function BookingCalendar({
           <div className="flex align-center justify-between" style={{ marginBottom: 16 }}>
             <h4 style={{ fontSize: '1.1rem' }}>{monthNames[currentMonth]} {currentYear}</h4>
             <div className="flex gap-2">
-              <button onClick={prevMonth} className="btn btn-secondary" style={{ padding: 6, borderRadius: '8px' }}><ChevronLeft size={18} /></button>
-              <button onClick={nextMonth} className="btn btn-secondary" style={{ padding: 6, borderRadius: '8px' }}><ChevronRight size={18} /></button>
+              <button aria-label="Previous month" onClick={prevMonth} className="btn btn-secondary" style={{ padding: 6, borderRadius: '8px' }}><ChevronLeft size={18} /></button>
+              <button aria-label="Next month" onClick={nextMonth} className="btn btn-secondary" style={{ padding: 6, borderRadius: '8px' }}><ChevronRight size={18} /></button>
             </div>
           </div>
 

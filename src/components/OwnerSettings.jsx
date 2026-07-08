@@ -296,6 +296,7 @@ export default function OwnerSettings() {
                   </button>
                   <button
                     onClick={() => handleDeleteCode(code.id)}
+                    aria-label="Delete promo code"
                     style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
                   >
                     <Trash2 size={14} />

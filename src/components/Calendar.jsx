@@ -34,6 +34,11 @@ export default function BookingCalendar({ onBookingComplete }) {
   const [promoApplied, setPromoApplied] = useState(null);
   const [promoLoading, setPromoLoading] = useState(false);
 
+  // New state variables for availability and visual validations
+  const [availabilities, setAvailabilities] = useState([]);
+  const [validationErrors, setValidationErrors] = useState({});
+  const [attemptedSubmit, setAttemptedSubmit] = useState(false);
+
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());
   const [currentYear, setCurrentYear] = useState(today.getFullYear());
@@ -44,7 +49,7 @@ export default function BookingCalendar({ onBookingComplete }) {
   const daysInMonth = getDaysInMonth(currentMonth, currentYear);
   const firstDayIndex = getFirstDayOfMonth(currentMonth, currentYear);
 
-  // Fetch dynamic pricing rates from DB
+  // Fetch dynamic pricing rates and employee availabilities from DB
   useEffect(() => {
     const fetchRates = async () => {
       try {
@@ -67,8 +72,37 @@ export default function BookingCalendar({ onBookingComplete }) {
         console.log('Using default rates:', err.message);
       }
     };
+
+    const fetchAvailabilities = async () => {
+      try {
+        const { data, error } = await supabase
+          .from('employee_availability')
+          .select('day_of_week, available')
+          .eq('available', true);
+        if (data && !error) {
+          setAvailabilities(data || []);
+        }
+      } catch (err) {
+        console.error('Error fetching employee availabilities:', err);
+      }
+    };
+
     fetchRates();
+    fetchAvailabilities();
   }, []);
+
+  const isDayAvailable = (date) => {
+    // Standard validation: prevent selection of past days
+    if (date < new Date().setHours(0,0,0,0)) return false;
+    
+    // If no employee availabilities have been configured yet, default to allowing weekdays (Mon-Fri)
+    if (availabilities.length === 0) {
+      const day = date.getDay();
+      return day >= 1 && day <= 5;
+    }
+    const dayOfWeek = date.getDay();
+    return availabilities.some(a => a.day_of_week === dayOfWeek);
+  };
 
   const prevMonth = () => {
     if (currentMonth === 0) { setCurrentMonth(11); setCurrentYear(prev => prev - 1); }
@@ -86,7 +120,13 @@ export default function BookingCalendar({ onBookingComplete }) {
 
   const handleDayClick = (day) => {
     const date = new Date(currentYear, currentMonth, day);
-    if (date >= new Date().setHours(0, 0, 0, 0)) setSelectedDate(date);
+    if (isDayAvailable(date)) {
+      setSelectedDate(date);
+      // Reset selectedTime when date changes
+      setSelectedTime(null);
+      // Remove date validation error if present
+      setValidationErrors(prev => ({ ...prev, selectedDate: null }));
+    }
   };
 
   const handleApplyPromo = async () => {
@@ -114,10 +154,40 @@ export default function BookingCalendar({ onBookingComplete }) {
     }
   };
 
+  const validateForm = () => {
+    const errs = {};
+    if (!selectedDate) errs.selectedDate = 'Please pick a date on the calendar.';
+    if (!selectedTime) errs.selectedTime = 'Please choose an available time slot.';
+    if (!clientName.trim()) errs.clientName = 'Full Name is required.';
+    
+    if (!clientEmail.trim()) {
+      errs.clientEmail = 'Email Address is required.';
+    } else if (!/\S+@\S+\.\S+/.test(clientEmail)) {
+      errs.clientEmail = 'Please enter a valid email address.';
+    }
+    
+    if (!clientPhone.trim()) errs.clientPhone = 'Phone Number is required.';
+    if (!clientAddress.trim()) errs.clientAddress = 'Service Address is required.';
+    return errs;
+  };
+
   const handleSubmit = (e) => {
     e.preventDefault();
-    if (!selectedDate || !selectedTime) {
-      alert('Please select a date and time slot first!');
+    setAttemptedSubmit(true);
+    const errs = validateForm();
+    setValidationErrors(errs);
+
+    if (Object.keys(errs).length > 0) {
+      // Alert with details of what was missed
+      alert('⚠️ Please fix the following before booking:\n\n' + Object.values(errs).join('\n'));
+      
+      // Scroll to the first error element
+      const firstErrKey = Object.keys(errs)[0];
+      const element = document.getElementsByName(firstErrKey)[0];
+      if (element) {
+        element.scrollIntoView({ behavior: 'smooth', block: 'center' });
+        element.focus();
+      }
       return;
     }
 
@@ -315,32 +385,60 @@ export default function BookingCalendar({ onBookingComplete }) {
           </div>
 
           {/* Calendar Grid */}
-          <div className="calendar-grid">
-            {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
-              <div key={d} className="calendar-day-header">{d}</div>
-            ))}
-            {Array.from({ length: firstDayIndex }).map((_, i) => (
-              <div key={`empty-${i}`} />
-            ))}
-            {Array.from({ length: daysInMonth }).map((_, i) => {
-              const day = i + 1;
-              const date = new Date(currentYear, currentMonth, day);
-              const isPast = date < new Date().setHours(0, 0, 0, 0);
-              const isSelected = selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear;
-              return (
-                <div
-                  key={day}
-                  onClick={() => !isPast && handleDayClick(day)}
-                  className={`calendar-day-cell ${isPast ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
-                >
-                  <span className="calendar-day-number">{day}</span>
-                </div>
-              );
-            })}
+          <div 
+            name="selectedDate"
+            style={{ 
+              border: attemptedSubmit && validationErrors.selectedDate ? '2px solid #ef4444' : '1px solid transparent',
+              borderRadius: '12px',
+              padding: '6px',
+              backgroundColor: attemptedSubmit && validationErrors.selectedDate ? 'rgba(239, 68, 68, 0.03)' : 'transparent',
+              transition: 'all 0.2s'
+            }}
+          >
+            <div className="calendar-grid">
+              {['Su', 'Mo', 'Tu', 'We', 'Th', 'Fr', 'Sa'].map((d) => (
+                <div key={d} className="calendar-day-header">{d}</div>
+              ))}
+              {Array.from({ length: firstDayIndex }).map((_, i) => (
+                <div key={`empty-${i}`} />
+              ))}
+              {Array.from({ length: daysInMonth }).map((_, i) => {
+                const day = i + 1;
+                const date = new Date(currentYear, currentMonth, day);
+                const isDisabled = !isDayAvailable(date);
+                const isSelected = selectedDate && selectedDate.getDate() === day && selectedDate.getMonth() === currentMonth && selectedDate.getFullYear() === currentYear;
+                return (
+                  <div
+                    key={day}
+                    onClick={() => !isDisabled && handleDayClick(day)}
+                    className={`calendar-day-cell ${isDisabled ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
+                    style={isDisabled ? { cursor: 'not-allowed', opacity: 0.25 } : {}}
+                  >
+                    <span className="calendar-day-number">{day}</span>
+                  </div>
+                );
+              })}
+            </div>
           </div>
+          {attemptedSubmit && validationErrors.selectedDate && (
+            <span style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: 8, display: 'block', fontWeight: 600 }}>
+              ⚠️ {validationErrors.selectedDate}
+            </span>
+          )}
 
           {selectedDate && (
-            <div className="animate-fade-in" style={{ marginTop: 24 }}>
+            <div 
+              name="selectedTime"
+              className="animate-fade-in" 
+              style={{ 
+                marginTop: 24,
+                border: attemptedSubmit && validationErrors.selectedTime ? '2px solid #ef4444' : '1px solid transparent',
+                borderRadius: '12px',
+                padding: attemptedSubmit && validationErrors.selectedTime ? '10px' : '0px',
+                backgroundColor: attemptedSubmit && validationErrors.selectedTime ? 'rgba(239, 68, 68, 0.03)' : 'transparent',
+                transition: 'all 0.2s'
+              }}
+            >
               <label className="form-label" style={{ display: 'flex', alignItems: 'center', gap: 6 }}>
                 <Clock size={16} /> Available Slots for {selectedDate.toLocaleDateString()}
               </label>
@@ -348,13 +446,21 @@ export default function BookingCalendar({ onBookingComplete }) {
                 {TIME_SLOTS.map((slot) => (
                   <div
                     key={slot}
-                    onClick={() => setSelectedTime(slot)}
+                    onClick={() => {
+                      setSelectedTime(slot);
+                      setValidationErrors(prev => ({ ...prev, selectedTime: null }));
+                    }}
                     className={`calendar-slot-button ${selectedTime === slot ? 'selected' : ''}`}
                   >
                     {slot}
                   </div>
                 ))}
               </div>
+              {attemptedSubmit && validationErrors.selectedTime && (
+                <span style={{ color: '#ef4444', fontSize: '0.82rem', marginTop: 8, display: 'block', fontWeight: 600 }}>
+                  ⚠️ {validationErrors.selectedTime}
+                </span>
+              )}
             </div>
           )}
 
@@ -363,23 +469,91 @@ export default function BookingCalendar({ onBookingComplete }) {
 
             <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Full Name</label>
-                <input type="text" required value={clientName} onChange={(e) => setClientName(e.target.value)} className="form-input" placeholder="John Doe" />
+                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'inherit' }}>Full Name</label>
+                <input 
+                  type="text" 
+                  name="clientName"
+                  value={clientName} 
+                  onChange={(e) => {
+                    setClientName(e.target.value);
+                    if (validationErrors.clientName) setValidationErrors(prev => ({ ...prev, clientName: null }));
+                  }} 
+                  className="form-input" 
+                  placeholder="John Doe"
+                  style={{
+                    borderColor: attemptedSubmit && validationErrors.clientName ? '#ef4444' : 'var(--border-color)',
+                    backgroundColor: attemptedSubmit && validationErrors.clientName ? '#fff5f5' : 'white'
+                  }}
+                />
+                {attemptedSubmit && validationErrors.clientName && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientName}</span>
+                )}
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Email Address</label>
-                <input type="email" required value={clientEmail} onChange={(e) => setClientEmail(e.target.value)} className="form-input" placeholder="john@example.com" />
+                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'inherit' }}>Email Address</label>
+                <input 
+                  type="email" 
+                  name="clientEmail"
+                  value={clientEmail} 
+                  onChange={(e) => {
+                    setClientEmail(e.target.value);
+                    if (validationErrors.clientEmail) setValidationErrors(prev => ({ ...prev, clientEmail: null }));
+                  }} 
+                  className="form-input" 
+                  placeholder="john@example.com"
+                  style={{
+                    borderColor: attemptedSubmit && validationErrors.clientEmail ? '#ef4444' : 'var(--border-color)',
+                    backgroundColor: attemptedSubmit && validationErrors.clientEmail ? '#fff5f5' : 'white'
+                  }}
+                />
+                {attemptedSubmit && validationErrors.clientEmail && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientEmail}</span>
+                )}
               </div>
             </div>
 
             <div className="grid grid-2" style={{ gap: 16, marginBottom: 16 }}>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Phone Number</label>
-                <input type="tel" required value={clientPhone} onChange={(e) => setClientPhone(e.target.value)} className="form-input" placeholder="(563) 555-0100" />
+                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'inherit' }}>Phone Number</label>
+                <input 
+                  type="tel" 
+                  name="clientPhone"
+                  value={clientPhone} 
+                  onChange={(e) => {
+                    setClientPhone(e.target.value);
+                    if (validationErrors.clientPhone) setValidationErrors(prev => ({ ...prev, clientPhone: null }));
+                  }} 
+                  className="form-input" 
+                  placeholder="(563) 555-0100"
+                  style={{
+                    borderColor: attemptedSubmit && validationErrors.clientPhone ? '#ef4444' : 'var(--border-color)',
+                    backgroundColor: attemptedSubmit && validationErrors.clientPhone ? '#fff5f5' : 'white'
+                  }}
+                />
+                {attemptedSubmit && validationErrors.clientPhone && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientPhone}</span>
+                )}
               </div>
               <div className="form-group" style={{ marginBottom: 0 }}>
-                <label className="form-label">Service Address</label>
-                <input type="text" required value={clientAddress} onChange={(e) => setClientAddress(e.target.value)} className="form-input" placeholder="123 Main St, Peosta, IA" />
+                <label className="form-label" style={{ color: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'inherit' }}>Service Address</label>
+                <input 
+                  type="text" 
+                  name="clientAddress"
+                  value={clientAddress} 
+                  onChange={(e) => {
+                    setClientAddress(e.target.value);
+                    if (validationErrors.clientAddress) setValidationErrors(prev => ({ ...prev, clientAddress: null }));
+                  }} 
+                  className="form-input" 
+                  placeholder="123 Main St, Peosta, IA"
+                  style={{
+                    borderColor: attemptedSubmit && validationErrors.clientAddress ? '#ef4444' : 'var(--border-color)',
+                    backgroundColor: attemptedSubmit && validationErrors.clientAddress ? '#fff5f5' : 'white'
+                  }}
+                />
+                {attemptedSubmit && validationErrors.clientAddress && (
+                  <span style={{ color: '#ef4444', fontSize: '0.78rem', marginTop: 4, display: 'block' }}>{validationErrors.clientAddress}</span>
+                )}
               </div>
             </div>
 
@@ -395,7 +569,6 @@ export default function BookingCalendar({ onBookingComplete }) {
               type="submit"
               className="btn btn-primary"
               style={{ width: '100%', padding: '14px', fontSize: '1.05rem' }}
-              disabled={!selectedDate || !selectedTime}
             >
               {frequency !== 'one-time' ? `Set Up ${frequency.charAt(0).toUpperCase() + frequency.slice(1)} Service — $${discountedPrice}` : `Book & Pay $${discountedPrice}`}
             </button>

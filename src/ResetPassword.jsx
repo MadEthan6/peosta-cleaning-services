@@ -1,41 +1,44 @@
-import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
+import { supabase } from './supabase';
 
 const ResetPassword = () => {
-  const [email, setEmail] = useState('');
-  const [message, setMessage] = useState('');
+  const [email, setEmail] = React.useState('');
+  const [resetSent, setResetSent] = React.useState(false);
+  const [error, setError] = React.useState('');
 
-  const handleResetPassword = async (e) => {
+  const handleReset = async (e) => {
     e.preventDefault();
+    if (!email) {
+      setError('Please enter your email address.');
+      return;
+    }
     const { error } = await supabase.auth.resetPasswordForEmail(email, {
-      redirectTo: 'https://MadEthan6.github.io/peosta-cleaning-services/'
+      redirectTo: 'https://MadEthan6.github.io/peosta-cleaning-services/',
     });
     if (error) {
-      setMessage('Error: ' + error.message);
+      setError('Error: ' + error.message);
     } else {
-      setMessage('Password reset email sent! Check your inbox.');
+      setResetSent(true);
+      alert('Password reset email sent!');
     }
   };
 
   return (
     <div>
       <h2>Reset Password</h2>
-      <form onSubmit={handleResetPassword}>
-        <label>
-          Email:
+      {resetSent ? (
+        <p>Password reset instructions have been sent to your email.</p>
+      ) : (
+        <form onSubmit={handleReset}>
           <input
             type="email"
+            placeholder="Email"
             value={email}
             onChange={(e) => setEmail(e.target.value)}
-            required
           />
-        </label>
-        <button type="submit">Send Reset Email</button>
-      </form>
-      {message && <p>{message}</p>}
-      <p>
-        <a href="/">Back to Login</a>
-      </p>
+          <button type="submit">Send Reset Instructions</button>
+          {error && <p style={{ color: 'red' }}>{error}</p>}
+        </form>
+      )}
     </div>
   );
 };

@@ -1,19 +1,36 @@
-import React, { useState } from 'react';
-import { supabase } from '../supabaseClient';
-import { useNavigate } from 'react-router-dom';
+import { supabase } from './supabase';
 
 const Login = () => {
-  const [email, setEmail] = useState('');
-  const [password, setPassword] = useState('');
-  const navigate = useNavigate();
+  const [email, setEmail] = React.useState('');
+  const [password, setPassword] = React.useState('');
+  const [showReset, setShowReset] = React.useState(false);
 
   const handleLogin = async (e) => {
     e.preventDefault();
-    const { error } = await supabase.auth.signIn({ email, password });
+    const { data, error } = await supabase.auth.signInWithPassword({
+      email,
+      password,
+    });
     if (error) {
       alert('Error: ' + error.message);
     } else {
-      navigate('/');
+      alert('Logged in successfully!');
+    }
+  };
+
+  const handleForgotPassword = async (e) => {
+    e.preventDefault();
+    if (!email) {
+      alert('Please enter your email address first.');
+      return;
+    }
+    const { error } = await supabase.auth.resetPasswordForEmail(email, {
+      redirectTo: 'https://MadEthan6.github.io/peosta-cleaning-services/',
+    });
+    if (error) {
+      alert('Error: ' + error.message);
+    } else {
+      alert('Password reset email sent!');
     }
   };
 
@@ -21,19 +38,37 @@ const Login = () => {
     <div>
       <h2>Login</h2>
       <form onSubmit={handleLogin}>
-        <label>
-          Email:
-          <input type="email" value={email} onChange={(e) => setEmail(e.target.value)} />
-        </label>
-        <label>
-          Password:
-          <input type="password" value={password} onChange={(e) => setPassword(e.target.value)} />
-        </label>
+        <input
+          type="email"
+          placeholder="Email"
+          value={email}
+          onChange={(e) => setEmail(e.target.value)}
+        />
+        <input
+          type="password"
+          placeholder="Password"
+          value={password}
+          onChange={(e) => setPassword(e.target.value)}
+        />
         <button type="submit">Login</button>
-        <p>
-          <Link to="/reset-password">Forgot Password?</Link>
-        </p>
+        <button
+          type="button"
+          onClick={() => setShowReset(!showReset)}
+        >
+          {showReset ? 'Cancel Reset' : 'Forgot Password?'}
+        </button>
       </form>
+      {showReset && (
+        <form onSubmit={handleForgotPassword}>
+          <input
+            type="email"
+            placeholder="Email"
+            value={email}
+            onChange={(e) => setEmail(e.target.value)}
+          />
+          <button type="submit">Reset Password</button>
+        </form>
+      )}
     </div>
   );
 };

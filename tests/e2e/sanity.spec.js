@@ -9,7 +9,7 @@ test.describe('E2E Sanity & Infrastructure Check', () => {
 
   test('should load the homepage and render the hero heading', async ({ page }) => {
     // Navigate to the base URL
-    await page.goto('/');
+    await page.goto('/peosta-cleaning-services/');
 
     // Validate the primary heading is rendered and contains correct text
     const heroHeading = page.locator('h1');

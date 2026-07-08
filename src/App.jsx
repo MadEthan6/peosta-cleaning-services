@@ -265,15 +265,7 @@ export default function App() {
         .eq('id', uid)
         .maybeSingle();
 
-      if (!data && email?.trim().toLowerCase() === 'ethanburds@gmail.com') {
-        const { data: newProfile, error: createError } = await supabase
-          .from('profiles')
-          .insert({ id: uid, email, full_name: 'Ethan Burds', role: 'owner' })
-          .select()
-          .single();
-        if (createError) throw createError;
-        data = newProfile;
-      } else if (error && !data) {
+      if (error && !data) {
         throw error;
       }
 
@@ -322,7 +314,7 @@ export default function App() {
   const handleRegister = async (e) => {
     e.preventDefault();
     try {
-      const resolvedRole = authEmail.trim().toLowerCase() === 'ethanburds@gmail.com' ? 'owner' : 'client';
+      const resolvedRole = 'client';
       const { data, error } = await supabase.auth.signUp({
         email: authEmail,
         password: authPassword,

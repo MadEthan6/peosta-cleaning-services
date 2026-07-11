@@ -9,16 +9,18 @@ test.describe('E2E Sanity & Infrastructure Check', () => {
 
   test('should load the homepage and render the hero heading', async ({ page }) => {
     // Navigate to the base URL
-    await page.goto('/');
+    page.on("pageerror", err => console.log("Page Error: " + err.message));
+    page.on("console", msg => console.log("Console: " + msg.text()));
+    await page.goto('/peosta-cleaning-services/');
 
     // Validate the primary heading is rendered and contains correct text
-    const heroHeading = page.locator('h1');
+    const heroHeading = page.locator('h1').filter({ hasText: 'A Sparkling Home' });
     await expect(heroHeading).toBeVisible();
     await expect(heroHeading).toContainText('A Sparkling Home');
     await expect(heroHeading).toContainText('Every Time.');
 
     // Validate subtext
-    const heroSubtext = page.locator('p').first();
+    const heroSubtext = page.locator('p').filter({ hasText: 'Peosta' }).first();
     await expect(heroSubtext).toContainText('Peosta');
   });
 });

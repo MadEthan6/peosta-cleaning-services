@@ -259,7 +259,7 @@ export default function InvoiceManager() {
                         <CheckCircle2 size={12} /> Mark Paid
                       </button>
                     )}
-                    <button onClick={() => deleteInvoice(inv.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '6px 8px', cursor: 'pointer' }}>
+                    <button onClick={() => deleteInvoice(inv.id)} style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '6px 8px', cursor: 'pointer' }} aria-label="Delete invoice" title="Delete invoice">
                       <Trash2 size={14} />
                     </button>
                   </div>

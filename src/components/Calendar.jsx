@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from "react";
 import { ChevronLeft, ChevronRight, Clock, RefreshCw, Tag } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -79,6 +79,8 @@ export default function BookingCalendar({
     }
   };
 
+  const addressTimeoutRef = useRef(null);
+
   const handleAddressChange = async (val) => {
     setClientAddress(val);
     if (validationErrors.clientAddress) {
@@ -88,18 +90,33 @@ export default function BookingCalendar({
       setAddressSuggestions([]);
       return;
     }
-    setAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setAddressSuggestions(data || []);
-      setShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    } finally {
-      setAddressLoading(false);
+
+    if (addressTimeoutRef.current) {
+      clearTimeout(addressTimeoutRef.current);
     }
+
+    addressTimeoutRef.current = setTimeout(async () => {
+      setAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setAddressSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 500);
   };
+
+  useEffect(() => {
+    return () => {
+      if (addressTimeoutRef.current) {
+        clearTimeout(addressTimeoutRef.current);
+      }
+    };
+  }, []);
 
   const today = new Date();
   const [currentMonth, setCurrentMonth] = useState(today.getMonth());

@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, createSecondaryClient } from './supabaseClient';
 import Navbar from './components/Navbar';
 import BookingCalendar from './components/Calendar';
@@ -88,6 +88,7 @@ export default function App() {
   const [regAddressSuggestions, setRegAddressSuggestions] = useState([]);
   const [regShowSuggestions, setRegShowSuggestions] = useState(false);
   const [regAddressLoading, setRegAddressLoading] = useState(false);
+  const regAddressTimeoutRef = useRef(null);
 
   const handleRegAddressChange = async (val) => {
     setAuthAddress(val);
@@ -95,17 +96,26 @@ export default function App() {
       setRegAddressSuggestions([]);
       return;
     }
-    setRegAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setRegAddressSuggestions(data || []);
-      setRegShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching registration address suggestions:', err);
-    } finally {
-      setRegAddressLoading(false);
+
+    // Performance optimization: debounce Nominatim API calls to avoid hitting rate limits (1 request/second)
+    // By waiting 500ms after the user finishes typing, we reduce redundant network requests.
+    if (regAddressTimeoutRef.current) {
+      clearTimeout(regAddressTimeoutRef.current);
     }
+
+    regAddressTimeoutRef.current = setTimeout(async () => {
+      setRegAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setRegAddressSuggestions(data || []);
+        setRegShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching registration address suggestions:', err);
+      } finally {
+        setRegAddressLoading(false);
+      }
+    }, 500);
   };
 
   // Payment states
@@ -156,20 +166,31 @@ export default function App() {
     setNewJobClientPhone(formatted);
   };
 
+  const ownerAddressTimeoutRef = useRef(null);
+
   const handleOwnerAddressChange = async (val) => {
     setNewJobAddress(val);
     if (val.length < 4) {
       setOwnerAddressSuggestions([]);
       return;
     }
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setOwnerAddressSuggestions(data || []);
-      setShowOwnerSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
+
+    // Performance optimization: debounce Nominatim API calls to avoid hitting rate limits (1 request/second)
+    // By waiting 500ms after the user finishes typing, we reduce redundant network requests.
+    if (ownerAddressTimeoutRef.current) {
+      clearTimeout(ownerAddressTimeoutRef.current);
     }
+
+    ownerAddressTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setOwnerAddressSuggestions(data || []);
+        setShowOwnerSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      }
+    }, 500);
   };
 
   // Stripe integration & forgot password states

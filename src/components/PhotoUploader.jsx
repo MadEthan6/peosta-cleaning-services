@@ -243,6 +243,8 @@ export default function PhotoUploader({ jobId, userId }) {
                     {new Date(photo.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
                   </span>
                   <button 
+                    aria-label="Delete photo"
+                    title="Delete photo"
                     onClick={() => handleDeletePhoto(photo)}
                     style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                   >

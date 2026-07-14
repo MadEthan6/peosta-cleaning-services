@@ -295,6 +295,8 @@ export default function OwnerSettings() {
                     {code.active ? 'Deactivate' : 'Activate'}
                   </button>
                   <button
+                    aria-label="Delete promo code"
+                    title="Delete promo code"
                     onClick={() => handleDeleteCode(code.id)}
                     style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
                   >

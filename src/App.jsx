@@ -1608,6 +1608,8 @@ export default function App() {
                 </div>
               </div>
               <button
+                aria-label="Dismiss notification"
+                title="Dismiss notification"
                 onClick={() => removeToast(t.id)}
                 style={{
                   background: 'none', border: 'none', color: colors.text, opacity: 0.5,

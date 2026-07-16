@@ -163,10 +163,12 @@ export default function JobChecklist({ jobId, userId }) {
               transition: 'var(--transition)'
             }}
           >
-            <div 
+            <button
               className="flex align-center gap-4" 
-              style={{ cursor: 'pointer', flexGrow: 1 }} 
+              style={{ cursor: 'pointer', flexGrow: 1, background: 'none', border: 'none', textAlign: 'left', padding: 0 }}
               onClick={() => handleToggle(task)}
+              aria-label={task.is_completed ? `Mark "${task.task_description}" as incomplete` : `Mark "${task.task_description}" as complete`}
+              title={task.is_completed ? "Mark as incomplete" : "Mark as complete"}
             >
               <div style={{ color: task.is_completed ? 'var(--color-success)' : '#94a3b8' }}>
                 {task.is_completed ? <CheckSquare size={20} /> : <Square size={20} />}
@@ -177,9 +179,11 @@ export default function JobChecklist({ jobId, userId }) {
               }}>
                 {task.task_description}
               </span>
-            </div>
+            </button>
             <button 
               onClick={() => handleDeleteTask(task.id)}
+              aria-label={`Delete task: "${task.task_description}"`}
+              title="Delete task"
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}
@@ -199,7 +203,14 @@ export default function JobChecklist({ jobId, userId }) {
           className="form-input" 
           style={{ flexGrow: 1, backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
         />
-        <button type="submit" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }}>
+        <button
+          type="submit"
+          className="btn btn-primary"
+          aria-label="Add custom task"
+          title={!newTask.trim() ? "Enter a task to add" : "Add custom task"}
+          disabled={!newTask.trim()}
+          style={{ padding: '12px 18px', borderRadius: '12px', opacity: !newTask.trim() ? 0.5 : 1, cursor: !newTask.trim() ? 'not-allowed' : 'pointer' }}
+        >
           <Plus size={20} />
         </button>
       </form>

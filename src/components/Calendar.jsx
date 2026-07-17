@@ -79,7 +79,10 @@ export default function BookingCalendar({
     }
   };
 
+  const addressTimeout = React.useRef(null);
+
   const handleAddressChange = async (val) => {
+    clearTimeout(addressTimeout.current);
     setClientAddress(val);
     if (validationErrors.clientAddress) {
       setValidationErrors(prev => ({ ...prev, clientAddress: null }));
@@ -88,17 +91,20 @@ export default function BookingCalendar({
       setAddressSuggestions([]);
       return;
     }
-    setAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setAddressSuggestions(data || []);
-      setShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    } finally {
-      setAddressLoading(false);
-    }
+
+    addressTimeout.current = setTimeout(async () => {
+      setAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setAddressSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 500);
   };
 
   const today = new Date();

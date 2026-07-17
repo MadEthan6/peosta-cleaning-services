@@ -89,23 +89,29 @@ export default function App() {
   const [regShowSuggestions, setRegShowSuggestions] = useState(false);
   const [regAddressLoading, setRegAddressLoading] = useState(false);
 
+  const regAddressTimeout = React.useRef(null);
+
   const handleRegAddressChange = async (val) => {
+    clearTimeout(regAddressTimeout.current);
     setAuthAddress(val);
     if (val.length < 4) {
       setRegAddressSuggestions([]);
       return;
     }
-    setRegAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setRegAddressSuggestions(data || []);
-      setRegShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching registration address suggestions:', err);
-    } finally {
-      setRegAddressLoading(false);
-    }
+
+    regAddressTimeout.current = setTimeout(async () => {
+      setRegAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setRegAddressSuggestions(data || []);
+        setRegShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching registration address suggestions:', err);
+      } finally {
+        setRegAddressLoading(false);
+      }
+    }, 500);
   };
 
   // Payment states
@@ -156,20 +162,26 @@ export default function App() {
     setNewJobClientPhone(formatted);
   };
 
+  const ownerAddressTimeout = React.useRef(null);
+
   const handleOwnerAddressChange = async (val) => {
+    clearTimeout(ownerAddressTimeout.current);
     setNewJobAddress(val);
     if (val.length < 4) {
       setOwnerAddressSuggestions([]);
       return;
     }
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setOwnerAddressSuggestions(data || []);
-      setShowOwnerSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    }
+
+    ownerAddressTimeout.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setOwnerAddressSuggestions(data || []);
+        setShowOwnerSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      }
+    }, 500);
   };
 
   // Stripe integration & forgot password states

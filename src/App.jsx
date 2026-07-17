@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { supabase, createSecondaryClient } from './supabaseClient';
 import Navbar from './components/Navbar';
 import BookingCalendar from './components/Calendar';
@@ -88,24 +88,32 @@ export default function App() {
   const [regAddressSuggestions, setRegAddressSuggestions] = useState([]);
   const [regShowSuggestions, setRegShowSuggestions] = useState(false);
   const [regAddressLoading, setRegAddressLoading] = useState(false);
+  const regAddressTimeoutRef = useRef(null);
 
   const handleRegAddressChange = async (val) => {
+    // ⚡ Bolt: Clear timeout immediately to prevent race conditions when input changes rapidly
+    if (regAddressTimeoutRef.current) clearTimeout(regAddressTimeoutRef.current);
+
     setAuthAddress(val);
     if (val.length < 4) {
       setRegAddressSuggestions([]);
       return;
     }
-    setRegAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setRegAddressSuggestions(data || []);
-      setRegShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching registration address suggestions:', err);
-    } finally {
-      setRegAddressLoading(false);
-    }
+
+    // ⚡ Bolt: Debounce third-party API calls to reduce network requests and avoid rate limits
+    regAddressTimeoutRef.current = setTimeout(async () => {
+      setRegAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setRegAddressSuggestions(data || []);
+        setRegShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching registration address suggestions:', err);
+      } finally {
+        setRegAddressLoading(false);
+      }
+    }, 500);
   };
 
   // Payment states
@@ -156,20 +164,29 @@ export default function App() {
     setNewJobClientPhone(formatted);
   };
 
+  const ownerAddressTimeoutRef = useRef(null);
+
   const handleOwnerAddressChange = async (val) => {
+    // ⚡ Bolt: Clear timeout immediately to prevent race conditions when input changes rapidly
+    if (ownerAddressTimeoutRef.current) clearTimeout(ownerAddressTimeoutRef.current);
+
     setNewJobAddress(val);
     if (val.length < 4) {
       setOwnerAddressSuggestions([]);
       return;
     }
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setOwnerAddressSuggestions(data || []);
-      setShowOwnerSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    }
+
+    // ⚡ Bolt: Debounce third-party API calls to reduce network requests and avoid rate limits
+    ownerAddressTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setOwnerAddressSuggestions(data || []);
+        setShowOwnerSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      }
+    }, 500);
   };
 
   // Stripe integration & forgot password states

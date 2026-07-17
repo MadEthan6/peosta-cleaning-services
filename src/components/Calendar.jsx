@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { ChevronLeft, ChevronRight, Clock, RefreshCw, Tag } from 'lucide-react';
 import { supabase } from '../supabaseClient';
 
@@ -59,6 +59,7 @@ export default function BookingCalendar({
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
+  const addressTimeoutRef = useRef(null);
 
   const formatPhoneNumber = (value) => {
     if (!value) return value;
@@ -80,6 +81,9 @@ export default function BookingCalendar({
   };
 
   const handleAddressChange = async (val) => {
+    // ⚡ Bolt: Clear timeout immediately to prevent race conditions when input changes rapidly
+    if (addressTimeoutRef.current) clearTimeout(addressTimeoutRef.current);
+
     setClientAddress(val);
     if (validationErrors.clientAddress) {
       setValidationErrors(prev => ({ ...prev, clientAddress: null }));
@@ -88,17 +92,21 @@ export default function BookingCalendar({
       setAddressSuggestions([]);
       return;
     }
-    setAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setAddressSuggestions(data || []);
-      setShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    } finally {
-      setAddressLoading(false);
-    }
+
+    // ⚡ Bolt: Debounce third-party API calls to reduce network requests and avoid rate limits
+    addressTimeoutRef.current = setTimeout(async () => {
+      setAddressLoading(true);
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setAddressSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 500);
   };
 
   const today = new Date();

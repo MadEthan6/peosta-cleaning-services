@@ -1,0 +1,4 @@
+## 2025-02-28 - Remove dangerouslySetInnerHTML usage
+**Vulnerability:** Use of `dangerouslySetInnerHTML` for simple `<style>` injections in React components without dynamic content, exposing the app to potential XSS if the string were to become dynamic.
+**Learning:** `dangerouslySetInnerHTML` was used unnecessarily to inject standard, static CSS rules (`@keyframes`) inside a component (`App.jsx`). While it wasn't immediately exploitable because the content was static, using it violates React security best practices and sets a dangerous precedent.
+**Prevention:** Avoid `dangerouslySetInnerHTML` completely for static HTML/CSS. If injecting CSS directly within a React component, use a standard template literal inside the `<style>` tag (e.g., `<style>{`...`}</style>`) or move the CSS to an external stylesheet.

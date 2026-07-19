@@ -1,0 +1,4 @@
+## 2025-05-18 - Fix XSS vulnerability pattern in React styles
+**Vulnerability:** Usage of `dangerouslySetInnerHTML` for CSS styling injections in React components (e.g., `<style dangerouslySetInnerHTML={{__html: ...}} />`).
+**Learning:** Even when injecting static CSS, using `dangerouslySetInnerHTML` is an insecure coding practice that creates an opening for Cross-Site Scripting (XSS) vulnerabilities if the injected content later becomes dynamic.
+**Prevention:** Avoid `dangerouslySetInnerHTML` entirely in React. When injecting CSS rules directly into a component, prefer using standard template literals within a JSX `<style>` tag (e.g., `<style>{...}</style>`) to enforce secure coding habits and prevent potential XSS vulnerabilities.

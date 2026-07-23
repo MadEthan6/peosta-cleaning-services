@@ -9,10 +9,10 @@ test.describe('E2E Sanity & Infrastructure Check', () => {
 
   test('should load the homepage and render the hero heading', async ({ page }) => {
     // Navigate to the base URL
-    await page.goto('/');
+    await page.goto('./');
 
     // Validate the primary heading is rendered and contains correct text
-    const heroHeading = page.locator('h1');
+    const heroHeading = page.locator('h1').filter({ hasText: 'A Sparkling Home' });
     await expect(heroHeading).toBeVisible();
     await expect(heroHeading).toContainText('A Sparkling Home');
     await expect(heroHeading).toContainText('Every Time.');

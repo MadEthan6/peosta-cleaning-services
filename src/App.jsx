@@ -88,24 +88,32 @@ export default function App() {
   const [regAddressSuggestions, setRegAddressSuggestions] = useState([]);
   const [regShowSuggestions, setRegShowSuggestions] = useState(false);
   const [regAddressLoading, setRegAddressLoading] = useState(false);
+  const regAddressTimeoutRef = React.useRef(null);
 
-  const handleRegAddressChange = async (val) => {
+  const handleRegAddressChange = (val) => {
+    if (regAddressTimeoutRef.current) clearTimeout(regAddressTimeoutRef.current);
+
     setAuthAddress(val);
     if (val.length < 4) {
       setRegAddressSuggestions([]);
       return;
     }
     setRegAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setRegAddressSuggestions(data || []);
-      setRegShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching registration address suggestions:', err);
-    } finally {
-      setRegAddressLoading(false);
-    }
+
+    // ⚡ Bolt: Debounce external API calls to OpenStreetMap Nominatim
+    // Impact: Prevents firing HTTP requests on every keystroke, reducing network traffic and avoiding rate limits
+    regAddressTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setRegAddressSuggestions(data || []);
+        setRegShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching registration address suggestions:', err);
+      } finally {
+        setRegAddressLoading(false);
+      }
+    }, 500);
   };
 
   // Payment states
@@ -156,20 +164,29 @@ export default function App() {
     setNewJobClientPhone(formatted);
   };
 
-  const handleOwnerAddressChange = async (val) => {
+  const ownerAddressTimeoutRef = React.useRef(null);
+
+  const handleOwnerAddressChange = (val) => {
+    if (ownerAddressTimeoutRef.current) clearTimeout(ownerAddressTimeoutRef.current);
+
     setNewJobAddress(val);
     if (val.length < 4) {
       setOwnerAddressSuggestions([]);
       return;
     }
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setOwnerAddressSuggestions(data || []);
-      setShowOwnerSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    }
+
+    // ⚡ Bolt: Debounce external API calls to OpenStreetMap Nominatim
+    // Impact: Prevents firing HTTP requests on every keystroke, reducing network traffic and avoiding rate limits
+    ownerAddressTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setOwnerAddressSuggestions(data || []);
+        setShowOwnerSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      }
+    }, 500);
   };
 
   // Stripe integration & forgot password states

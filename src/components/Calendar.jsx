@@ -59,6 +59,7 @@ export default function BookingCalendar({
   const [addressSuggestions, setAddressSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
   const [addressLoading, setAddressLoading] = useState(false);
+  const addressTimeoutRef = React.useRef(null); // Used to debounce OpenStreetMap API calls
 
   const formatPhoneNumber = (value) => {
     if (!value) return value;
@@ -79,7 +80,9 @@ export default function BookingCalendar({
     }
   };
 
-  const handleAddressChange = async (val) => {
+  const handleAddressChange = (val) => {
+    if (addressTimeoutRef.current) clearTimeout(addressTimeoutRef.current);
+
     setClientAddress(val);
     if (validationErrors.clientAddress) {
       setValidationErrors(prev => ({ ...prev, clientAddress: null }));
@@ -88,17 +91,22 @@ export default function BookingCalendar({
       setAddressSuggestions([]);
       return;
     }
+
     setAddressLoading(true);
-    try {
-      const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
-      const data = await res.json();
-      setAddressSuggestions(data || []);
-      setShowSuggestions(true);
-    } catch (err) {
-      console.error('Error fetching suggestions:', err);
-    } finally {
-      setAddressLoading(false);
-    }
+    // ⚡ Bolt: Debounce external API calls to OpenStreetMap Nominatim
+    // Impact: Prevents firing HTTP requests on every keystroke, reducing network traffic and avoiding rate limits
+    addressTimeoutRef.current = setTimeout(async () => {
+      try {
+        const res = await fetch(`https://nominatim.openstreetmap.org/search?format=json&q=${encodeURIComponent(val)}&limit=5&countrycodes=us`);
+        const data = await res.json();
+        setAddressSuggestions(data || []);
+        setShowSuggestions(true);
+      } catch (err) {
+        console.error('Error fetching suggestions:', err);
+      } finally {
+        setAddressLoading(false);
+      }
+    }, 500);
   };
 
   const today = new Date();

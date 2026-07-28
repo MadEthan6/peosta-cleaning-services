@@ -1,0 +1,1 @@
+## 2024-07-28 - Avoid Nested Components\n**Learning:** Defining components inside other functional components causes the child to remount on every parent render, severely impacting performance.\n**Action:** Extract components like `JobCard` outside the parent scope and use `React.memo`.

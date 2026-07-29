@@ -299,7 +299,16 @@ export default function BookingCalendar({
               {packages.map((pkg) => (
                 <div
                   key={pkg.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select package: ${pkg.name}`}
                   onClick={() => setSelectedPackage(pkg)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setSelectedPackage(pkg);
+                    }
+                  }}
                   style={{
                     padding: 16,
                     borderRadius: 'var(--radius)',
@@ -335,7 +344,16 @@ export default function BookingCalendar({
               {FREQUENCY_OPTIONS.map((opt) => (
                 <div
                   key={opt.id}
+                  role="button"
+                  tabIndex={0}
+                  aria-label={`Select frequency: ${opt.label}`}
                   onClick={() => setFrequency(opt.id)}
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter' || e.key === ' ') {
+                      e.preventDefault();
+                      setFrequency(opt.id);
+                    }
+                  }}
                   style={{
                     padding: 16,
                     borderRadius: 'var(--radius)',
@@ -478,7 +496,17 @@ export default function BookingCalendar({
                 return (
                   <div
                     key={day}
+                    role="button"
+                    tabIndex={isDisabled ? -1 : 0}
+                    aria-label={`Select date: ${date.toLocaleDateString()}`}
+                    aria-disabled={isDisabled}
                     onClick={() => !isDisabled && handleDayClick(day)}
+                    onKeyDown={(e) => {
+                      if (!isDisabled && (e.key === 'Enter' || e.key === ' ')) {
+                        e.preventDefault();
+                        handleDayClick(day);
+                      }
+                    }}
                     className={`calendar-day-cell ${isDisabled ? 'disabled' : ''} ${isSelected ? 'selected' : ''}`}
                     style={isDisabled ? { cursor: 'not-allowed', opacity: 0.25 } : {}}
                   >
@@ -514,9 +542,19 @@ export default function BookingCalendar({
                 {TIME_SLOTS.map((slot) => (
                   <div
                     key={slot}
+                    role="button"
+                    tabIndex={0}
+                    aria-label={`Select time slot: ${slot}`}
                     onClick={() => {
                       setSelectedTime(slot);
                       setValidationErrors(prev => ({ ...prev, selectedTime: null }));
+                    }}
+                    onKeyDown={(e) => {
+                      if (e.key === 'Enter' || e.key === ' ') {
+                        e.preventDefault();
+                        setSelectedTime(slot);
+                        setValidationErrors(prev => ({ ...prev, selectedTime: null }));
+                      }
                     }}
                     className={`calendar-slot-button ${selectedTime === slot ? 'selected' : ''}`}
                   >

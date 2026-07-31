@@ -1,0 +1,3 @@
+## 2024-05-18 - Extract Nested React Components
+**Learning:** Defining a functional component (like `JobCard`) inside another functional component (`ClientHistory`) causes the inner component to be fully unmounted and remounted on every parent render. This breaks any attempts at memoization and degrades rendering performance, particularly for lists.
+**Action:** Extract nested component definitions outside the parent component and pass necessary closure variables explicitly as props (e.g., passing `isSelected` instead of referencing `selected` from closure) and wrap in `React.memo` if necessary to prevent re-renders.

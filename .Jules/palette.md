@@ -1,0 +1,3 @@
+## 2024-05-16 - Accessible Custom Checklists & Icon Buttons
+**Learning:** Custom interactive elements like a clickable `div` used for task toggles must be treated as buttons. They require `role="button"`, `tabIndex={0}`, and an `onKeyDown` handler listening for both "Enter" and " " (Space). Similarly, icon-only action buttons (like Delete/Add) need explicit context via `aria-label` for screen readers and `title` for mouse hover tooltips.
+**Action:** When implementing task lists or interactive cards outside of standard form inputs, always apply the full ARIA button pattern to ensure keyboard and screen reader users can navigate and operate them easily.

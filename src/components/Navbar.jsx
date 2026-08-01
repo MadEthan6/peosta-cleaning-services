@@ -7,7 +7,20 @@ export default function Navbar({ currentTab, setCurrentTab, user, profile, onLog
   return (
     <header className="glass-panel" style={{ position: 'sticky', top: 0, zIndex: 50, borderBottom: '1px solid var(--border-color)', padding: '16px 0' }}>
       <div className="container flex align-center justify-between">
-        <div className="flex align-center gap-2" style={{ cursor: 'pointer' }} onClick={() => setCurrentTab('home')}>
+        <div
+          className="flex align-center gap-2"
+          style={{ cursor: 'pointer' }}
+          onClick={() => setCurrentTab('home')}
+          role="button"
+          tabIndex={0}
+          aria-label="Go to home"
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === ' ') {
+              e.preventDefault();
+              setCurrentTab('home');
+            }
+          }}
+        >
           <div className="gradient-fresh" style={{ width: 40, height: 40, borderRadius: '12px', display: 'flex', alignItems: 'center', justifyCenter: 'center', justifyContent: 'center', color: 'white' }}>
             <Sparkles size={24} />
           </div>

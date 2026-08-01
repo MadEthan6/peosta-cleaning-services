@@ -1,0 +1,3 @@
+## 2024-05-15 - Interactive Non-Button Elements Require Keyboard Support
+**Learning:** When using non-interactive elements like `div` or `span` as clickable elements (e.g., logos, custom cards) with `onClick`, they lack native keyboard accessibility, preventing screen reader and keyboard-only users from activating them. This was observed with the main logo in the Navbar.
+**Action:** When converting non-interactive elements into interactive components, always ensure keyboard accessibility by adding `role="button"`, `tabIndex={0}`, an appropriate `aria-label`, and an `onKeyDown` handler for both 'Enter' and ' ' (Space) keys.

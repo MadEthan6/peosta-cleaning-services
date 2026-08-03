@@ -1,0 +1,3 @@
+## 2024-08-03 - Extracting nested components in React
+**Learning:** Defining a functional React component (e.g., `const JobCard = () => ...`) inside another functional component triggers full unmounting and remounting of that nested component on every render of the parent. This destroys state, causes loss of DOM focus, and creates significant performance bottlenecks due to unnecessary DOM operations and React reconciliation overhead.
+**Action:** Always declare functional components outside of other functional components. If they need parent scope variables, either pass them as props or rethink the component boundary.

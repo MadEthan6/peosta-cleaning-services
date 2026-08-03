@@ -1564,15 +1564,17 @@ export default function App() {
         display: 'flex', flexDirection: 'column', gap: 10,
         width: 'calc(100% - 48px)', maxWidth: 360, pointerEvents: 'none'
       }}>
-        <style dangerouslySetInnerHTML={{__html: `
-          @keyframes slideInToast {
-            from { transform: translateX(120%); opacity: 0; }
-            to { transform: translateX(0); opacity: 1; }
-          }
-          .toast-notification {
-            animation: slideInToast 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
-          }
-        `}} />
+        <style>
+          {`
+            @keyframes slideInToast {
+              from { transform: translateX(120%); opacity: 0; }
+              to { transform: translateX(0); opacity: 1; }
+            }
+            .toast-notification {
+              animation: slideInToast 0.35s cubic-bezier(0.16, 1, 0.3, 1) forwards;
+            }
+          `}
+        </style>
         {toasts.map(t => {
           const colors = {
             success: { bg: '#064e3b', border: '#059669', text: '#ecfdf5', icon: '✅' },

@@ -179,6 +179,8 @@ export default function JobChecklist({ jobId, userId }) {
               </span>
             </div>
             <button 
+              aria-label="Delete task"
+              title="Delete task"
               onClick={() => handleDeleteTask(task.id)}
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
@@ -199,7 +201,7 @@ export default function JobChecklist({ jobId, userId }) {
           className="form-input" 
           style={{ flexGrow: 1, backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
         />
-        <button type="submit" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }}>
+        <button type="submit" aria-label="Add task" title="Add task" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }}>
           <Plus size={20} />
         </button>
       </form>

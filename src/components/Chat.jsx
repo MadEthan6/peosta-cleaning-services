@@ -224,7 +224,7 @@ export default function Chat({ userId }) {
                 placeholder={`Text ${selectedUser.full_name}...`}
                 className="form-input chat-input"
               />
-              <button type="submit" className="btn btn-primary" style={{ padding: '12px 20px', borderRadius: '12px' }}>
+              <button type="submit" aria-label="Send message" title="Send message" className="btn btn-primary" style={{ padding: '12px 20px', borderRadius: '12px' }}>
                 <Send size={18} />
               </button>
             </form>

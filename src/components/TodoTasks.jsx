@@ -120,6 +120,8 @@ export default function TodoTasks({ jobId, userRole, userId }) {
               </span>
               {(userRole === 'owner') && (
                 <button
+                  aria-label="Delete task"
+                  title="Delete task"
                   onClick={() => handleDeleteTask(task.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'flex', flexShrink: 0 }}
                 >
@@ -151,6 +153,8 @@ export default function TodoTasks({ jobId, userRole, userId }) {
             }}
           />
           <button
+            aria-label="Add task"
+            title="Add task"
             onClick={handleAddTask}
             disabled={adding || !newTask.trim()}
             className="btn btn-primary"

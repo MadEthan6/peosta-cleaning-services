@@ -12,7 +12,7 @@ test.describe('E2E Sanity & Infrastructure Check', () => {
     await page.goto('/');
 
     // Validate the primary heading is rendered and contains correct text
-    const heroHeading = page.locator('h1');
+    const heroHeading = page.locator('h1').filter({ hasText: 'A Sparkling Home' });
     await expect(heroHeading).toBeVisible();
     await expect(heroHeading).toContainText('A Sparkling Home');
     await expect(heroHeading).toContainText('Every Time.');

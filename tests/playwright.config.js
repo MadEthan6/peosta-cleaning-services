@@ -8,7 +8,7 @@ export default defineConfig({
   workers: 1,
   reporter: 'list',
   use: {
-    baseURL: 'http://localhost:5173',
+    baseURL: 'http://localhost:5173/peosta-cleaning-services/',
     trace: 'on-first-retry',
     screenshot: 'only-on-failure',
   },
@@ -19,8 +19,8 @@ export default defineConfig({
     },
   ],
   webServer: {
-    command: 'npx.cmd vite --port 5173',
-    url: 'http://localhost:5173',
+    command: 'pnpm dev --port 5173',
+    url: 'http://localhost:5173/peosta-cleaning-services/',
     reuseExistingServer: !process.env.CI,
     timeout: 120000,
   },

@@ -180,6 +180,8 @@ export default function JobChecklist({ jobId, userId }) {
             </div>
             <button 
               onClick={() => handleDeleteTask(task.id)}
+              aria-label="Delete task"
+              title="Delete task"
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}

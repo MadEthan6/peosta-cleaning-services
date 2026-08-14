@@ -122,6 +122,8 @@ export default function TodoTasks({ jobId, userRole, userId }) {
                 <button
                   onClick={() => handleDeleteTask(task.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'flex', flexShrink: 0 }}
+                  aria-label="Delete task"
+                  title="Delete task"
                 >
                   <Trash2 size={14} />
                 </button>
@@ -155,6 +157,8 @@ export default function TodoTasks({ jobId, userRole, userId }) {
             disabled={adding || !newTask.trim()}
             className="btn btn-primary"
             style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 4 }}
+            aria-label="Add task"
+            title="Add task"
           >
             <Plus size={16} />
           </button>

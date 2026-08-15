@@ -122,6 +122,8 @@ export default function TodoTasks({ jobId, userRole, userId }) {
                 <button
                   onClick={() => handleDeleteTask(task.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'flex', flexShrink: 0 }}
+                  aria-label="Delete todo item"
+                  title="Delete todo item"
                 >
                   <Trash2 size={14} />
                 </button>

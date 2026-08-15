@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { FileText, Plus, Send, CheckCircle2, Clock, DollarSign, Trash2, ExternalLink } from 'lucide-react';
 
@@ -110,8 +110,18 @@ export default function InvoiceManager() {
     fetchInvoices();
   };
 
-  const totalUnpaid = invoices.filter(i => i.status !== 'paid').reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
-  const totalPaid = invoices.filter(i => i.status === 'paid').reduce((sum, i) => sum + parseFloat(i.amount || 0), 0);
+  // ⚡ Bolt: Calculate totalPaid and totalUnpaid in a single pass wrapped in useMemo to prevent recalculations on every render
+  const { totalUnpaid, totalPaid } = useMemo(() => {
+    return invoices.reduce((totals, invoice) => {
+      const amount = parseFloat(invoice.amount || 0);
+      if (invoice.status === 'paid') {
+        totals.totalPaid += amount;
+      } else {
+        totals.totalUnpaid += amount;
+      }
+      return totals;
+    }, { totalUnpaid: 0, totalPaid: 0 });
+  }, [invoices]);
 
   const statusColor = { unpaid: '#f59e0b', sent: '#3b82f6', paid: '#10b981' };
   const statusIcon = { unpaid: <Clock size={14} />, sent: <Send size={14} />, paid: <CheckCircle2 size={14} /> };

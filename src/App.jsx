@@ -34,7 +34,8 @@ export default function App() {
   const [toasts, setToasts] = useState([]);
 
   const addToast = (message, type = 'info') => {
-    const id = Date.now() + Math.random().toString(36).substr(2, 9);
+    // Security Enhancement: Replaced insecure Math.random with crypto.randomUUID for ID generation
+    const id = typeof crypto !== 'undefined' && crypto.randomUUID ? crypto.randomUUID() : Date.now() + Math.random().toString(36).substr(2, 9);
     setToasts(prev => [...prev, { id, message, type }]);
     setTimeout(() => {
       removeToast(id);

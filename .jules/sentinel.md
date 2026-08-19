@@ -1,0 +1,4 @@
+## 2026-08-19 - Prevent Client-Side Exposure of Stripe Secret Key
+**Vulnerability:** The OwnerSettings component was executing a `select('*')` query on the `business_settings` table, exposing the critical `stripe_secret_key` to the client-side JavaScript bundle and network logs.
+**Learning:** Backend queries running on the frontend must explicitly select only non-sensitive columns (e.g., `select('stripe_publishable_key')`). Additionally, when building update forms for sensitive credentials, partial updates should conditionally append the secret to the payload only if actively provided by the user, avoiding overwrites with empty strings on save.
+**Prevention:** Use explicit `.select()` statements for configurations and conditionally append secrets to upsert payloads to safely perform partial updates in PostgREST.

@@ -1,0 +1,4 @@
+## 2024-11-28 - Avoid select('*') on Sensitive Tables
+**Vulnerability:** Fetching `business_settings` using `select('*')` on the frontend exposed all columns from the table to the client's browser, potentially leaking unrelated secret keys or sensitive configuration details.
+**Learning:** Even if the UI only uses a few fields (e.g., `stripe_publishable_key` and `stripe_secret_key`), the Supabase client library brings all selected columns over the wire. This violates the principle of least privilege.
+**Prevention:** Always explicitly specify required columns (e.g., `.select('col1, col2')`) when fetching data from tables containing sensitive information, especially in client-side components.

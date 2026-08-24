@@ -244,9 +244,11 @@ export default function PhotoUploader({ jobId, userId }) {
                   </span>
                   <button 
                     onClick={() => handleDeletePhoto(photo)}
+                    aria-label="Delete photo"
+                    title="Delete photo"
                     style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer' }}
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={14} aria-hidden="true" />
                   </button>
                 </div>
               </div>

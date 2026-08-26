@@ -1,0 +1,3 @@
+## 2025-05-18 - Avoid defining components inside components
+**Learning:** Defining functional components like `JobCard` inside other functional components like `ClientHistory` is a major React anti-pattern. It causes React to treat the nested component as a completely new component type on every render of the parent component, forcing React to unmount the entire DOM for all cards and remount them from scratch, destroying their state and being very bad for list rendering performance.
+**Action:** Always extract such sub-components to the top-level scope (outside the parent component), pass required data explicitly via props instead of relying on closures, and wrap the extracted component in `React.memo` to skip re-rendering if its props do not change.

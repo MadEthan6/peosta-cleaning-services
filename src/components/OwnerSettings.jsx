@@ -39,7 +39,8 @@ export default function OwnerSettings() {
 
   const fetchStripeKeys = async () => {
     try {
-      const { data } = await supabase.from('business_settings').select('*').eq('id', 1).maybeSingle();
+      // 🛡️ Sentinel: Only select required keys to avoid exposing unrelated sensitive data
+      const { data } = await supabase.from('business_settings').select('stripe_publishable_key, stripe_secret_key').eq('id', 1).maybeSingle();
       if (data) {
         setStripePublishableKey(data.stripe_publishable_key || '');
         setStripeSecretKey(data.stripe_secret_key || '');

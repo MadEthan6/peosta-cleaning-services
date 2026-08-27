@@ -167,9 +167,19 @@ export default function JobChecklist({ jobId, userId }) {
               className="flex align-center gap-4" 
               style={{ cursor: 'pointer', flexGrow: 1 }} 
               onClick={() => handleToggle(task)}
+              role="button"
+              tabIndex={0}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToggle(task);
+                }
+              }}
+              aria-label={task.is_completed ? 'Mark task incomplete' : 'Mark task complete'}
+              title={task.is_completed ? 'Mark task incomplete' : 'Mark task complete'}
             >
               <div style={{ color: task.is_completed ? 'var(--color-success)' : '#94a3b8' }}>
-                {task.is_completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                {task.is_completed ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
               </div>
               <span style={{ 
                 textDecoration: task.is_completed ? 'line-through' : 'none',
@@ -183,8 +193,10 @@ export default function JobChecklist({ jobId, userId }) {
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}
+              aria-label="Delete checklist item"
+              title="Delete checklist item"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -199,8 +211,15 @@ export default function JobChecklist({ jobId, userId }) {
           className="form-input" 
           style={{ flexGrow: 1, backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
         />
-        <button type="submit" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }}>
-          <Plus size={20} />
+        <button
+          type="submit"
+          className="btn btn-primary"
+          style={{ padding: '12px 18px', borderRadius: '12px' }}
+          disabled={!newTask.trim()}
+          aria-label="Add custom task"
+          title={!newTask.trim() ? "Enter a task to add" : "Add custom task"}
+        >
+          <Plus size={20} aria-hidden="true" />
         </button>
       </form>
     </div>

@@ -39,10 +39,10 @@ export default function OwnerSettings() {
 
   const fetchStripeKeys = async () => {
     try {
-      const { data } = await supabase.from('business_settings').select('*').eq('id', 1).maybeSingle();
+      // 🛡️ Sentinel: explicitly select only non-sensitive config to prevent stripe_secret_key leakage to frontend
+      const { data } = await supabase.from('business_settings').select('id, stripe_publishable_key').eq('id', 1).maybeSingle();
       if (data) {
         setStripePublishableKey(data.stripe_publishable_key || '');
-        setStripeSecretKey(data.stripe_secret_key || '');
       }
     } catch (err) {
       console.error('Error fetching Stripe keys:', err);
@@ -52,14 +52,21 @@ export default function OwnerSettings() {
   const handleSaveStripe = async () => {
     setSavingStripe(true);
     try {
-      const { error } = await supabase.from('business_settings').upsert({
+      const updatePayload = {
         id: 1,
         stripe_publishable_key: stripePublishableKey,
-        stripe_secret_key: stripeSecretKey,
         updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
+      };
+
+      // Only include secret key in update if it was modified (not empty)
+      if (stripeSecretKey) {
+        updatePayload.stripe_secret_key = stripeSecretKey;
+      }
+
+      const { error } = await supabase.from('business_settings').upsert(updatePayload, { onConflict: 'id' });
       if (error) throw error;
       setSavedStripe(true);
+      setStripeSecretKey(''); // Clear input after successful save
       setTimeout(() => setSavedStripe(false), 3000);
     } catch (err) {
       alert('Error saving Stripe keys: ' + err.message);

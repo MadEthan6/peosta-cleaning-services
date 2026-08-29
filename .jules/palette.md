@@ -1,0 +1,1 @@
+## 2024-05-18 - Missing ARIA Labels on Icon Buttons\n**Learning:** Many icon-only buttons (like delete, check, add) across the app components lack `aria-label`s, making them invisible or confusing to screen readers.\n**Action:** Add `aria-label` and `title` to these icon-only buttons to improve accessibility and UX.

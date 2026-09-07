@@ -1616,8 +1616,10 @@ export default function App() {
                 }}
                 onMouseEnter={(e) => e.target.style.opacity = 1}
                 onMouseLeave={(e) => e.target.style.opacity = 0.5}
+                aria-label="Close notification"
+                title="Close notification"
               >
-                ×
+                <span aria-hidden="true">×</span>
               </button>
             </div>
           );

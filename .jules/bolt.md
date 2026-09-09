@@ -1,0 +1,3 @@
+## 2024-03-20 - [Avoid Inner Component Definitions]
+**Learning:** Defining a functional component inside another functional component in React (e.g., `JobCard` inside `ClientHistory`) triggers full unmounting and remounting on every parent render, losing DOM state and heavily degrading performance.
+**Action:** Always extract inner component definitions outside of the parent component, pass necessary data as props, and wrap them in `React.memo` to prevent unnecessary re-renders.

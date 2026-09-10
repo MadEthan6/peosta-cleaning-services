@@ -1,0 +1,4 @@
+## 2024-05-24 - [CRITICAL] Fix exposed sensitive data and XSS
+**Vulnerability:** Supabase `select('*')` fetched the `stripe_secret_key` and exposed it to the frontend state in `OwnerSettings.jsx`. Also found a `dangerouslySetInnerHTML` tag used for inline styles.
+**Learning:** Avoid using `select('*')` on tables like `business_settings` to prevent unintentionally exposing sensitive keys to the browser. Supabase's `.upsert()` can safely update records with omitted fields, preserving existing secure data without overwriting it.
+**Prevention:** Always explicitly select the required, safe columns (e.g., `select('stripe_publishable_key')`). Ensure omitted fields in update payloads are handled correctly to avoid nullifying excluded fields. Avoid using `dangerouslySetInnerHTML` for CSS; use standard template literals inside JSX `<style>` tags.

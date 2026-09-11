@@ -1,0 +1,3 @@
+## 2024-05-24 - Accessibility improvements for interactive elements
+**Learning:** This app heavily relies on interactive `div` elements (like list items that toggle states) and icon-only buttons without proper ARIA attributes. This completely breaks keyboard navigation and screen reader support for critical functions.
+**Action:** When adding interactive states to non-semantic elements (like `div`), always ensure they have `role="button"`, `tabIndex={0}`, an explicit `aria-label`, and `onKeyDown` handlers for Enter/Space. For icon-only buttons, always include `aria-label`, `title`, and `aria-hidden="true"` on the SVG.

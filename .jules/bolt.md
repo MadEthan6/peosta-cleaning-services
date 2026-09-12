@@ -1,0 +1,3 @@
+## 2024-05-18 - Extracting Inner Components for Performance
+**Learning:** Defining functional components inside other functional components triggers full unmounting and remounting of the inner component on every parent render. This defeats memoization and degrades performance. Furthermore, relying on closure variables for state (like `selected`) prevents effective prop-based memoization.
+**Action:** Extract inner component definitions outside the parent component. Wrap the extracted component in `React.memo` and explicitly pass required derived primitive props (e.g., `isSelected={selected?.id === job.id}`) to maximize memoization benefits.

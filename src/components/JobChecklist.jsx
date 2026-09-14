@@ -167,9 +167,18 @@ export default function JobChecklist({ jobId, userId }) {
               className="flex align-center gap-4" 
               style={{ cursor: 'pointer', flexGrow: 1 }} 
               onClick={() => handleToggle(task)}
+              role="button"
+              tabIndex={0}
+              aria-pressed={task.is_completed}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToggle(task);
+                }
+              }}
             >
               <div style={{ color: task.is_completed ? 'var(--color-success)' : '#94a3b8' }}>
-                {task.is_completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                {task.is_completed ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
               </div>
               <span style={{ 
                 textDecoration: task.is_completed ? 'line-through' : 'none',
@@ -183,8 +192,10 @@ export default function JobChecklist({ jobId, userId }) {
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}
+              aria-label="Delete task"
+              title="Delete task"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} aria-hidden="true" />
             </button>
           </div>
         ))}

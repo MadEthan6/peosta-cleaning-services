@@ -1,0 +1,3 @@
+## 2024-05-18 - Extract and Memoize Component
+**Learning:** Extracting inline function components defined within render methods into the file scope and wrapping them with `React.memo()` avoids recreating and re-rendering them unnecessarily, particularly in list rendering. Passing derived boolean values via primitive props, such as `isSelected={selected?.id === item.id}` instead of the raw `selected` object from the outer scope, ensures that only the affected components unmount and mount appropriately while keeping the others cleanly memoized.
+**Action:** When finding inline function components inside lists, refactor them outside the component and wrap them with React.memo using primitive props instead of full object dependencies.

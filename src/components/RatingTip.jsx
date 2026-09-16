@@ -102,12 +102,15 @@ export default function RatingTip({ job, clientId }) {
             onMouseEnter={() => setHoverStar(s)}
             onMouseLeave={() => setHoverStar(0)}
             style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 0 }}
+            aria-label={`Rate ${s} star${s !== 1 ? 's' : ''}`}
+            title={`Rate ${s} star${s !== 1 ? 's' : ''}`}
           >
             <Star
               size={28}
               fill={(hoverStar || stars) >= s ? '#f59e0b' : 'none'}
               stroke="#f59e0b"
               style={{ transition: 'all 0.15s' }}
+              aria-hidden="true"
             />
           </button>
         ))}

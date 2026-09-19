@@ -1,0 +1,3 @@
+## 2024-09-19 - Accessible Labels for Icon-Only Buttons
+**Learning:** Icon-only buttons (like delete buttons with Trash2 SVG) frequently lack `aria-label` and `title` attributes across the application, making them inaccessible to screen readers and lacking tooltips for visual users. Also, the SVGs within them lack `aria-hidden="true"`, which can cause screen readers to announce the graphic incorrectly.
+**Action:** When creating or modifying icon-only buttons, always ensure they have an `aria-label` describing the action, a `title` for visual tooltips, and `aria-hidden="true"` on the child SVG icon to prevent screen readers from announcing it incorrectly.

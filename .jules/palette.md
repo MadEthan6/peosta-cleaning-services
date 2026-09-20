@@ -1,0 +1,1 @@
+## 2026-09-20 - Added ARIA attributes to icon-only buttons\n**Learning:** Decorative and action icon buttons need ARIA labels for accessibility, and their child SVG icons need `aria-hidden='true'` and a `title`.\n**Action:** Apply this to all icon-only buttons across components to improve screen reader compatibility.

@@ -1,0 +1,3 @@
+## 2024-06-25 - Prevent Unnecessary Re-renders in Lists
+**Learning:** Defining sub-components (like `JobCard`) directly inside parent functional components (like `ClientHistory`) causes them to fully unmount and remount on every parent re-render (e.g. state change for selection). This is detrimental for performance, especially with list items.
+**Action:** Extract the sub-component definition outside the parent, wrap it with `React.memo`, and explicitly pass primitives or memoized values (like `isSelected={selected?.id === item.id}`) instead of relying on the parent's closure state. This maximizes `React.memo` benefits ensuring only necessary items update.

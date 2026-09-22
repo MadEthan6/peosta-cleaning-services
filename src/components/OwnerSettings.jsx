@@ -27,7 +27,6 @@ export default function OwnerSettings() {
 
   // Stripe keys state
   const [stripePublishableKey, setStripePublishableKey] = useState('');
-  const [stripeSecretKey, setStripeSecretKey] = useState('');
   const [savingStripe, setSavingStripe] = useState(false);
   const [savedStripe, setSavedStripe] = useState(false);
 
@@ -39,10 +38,9 @@ export default function OwnerSettings() {
 
   const fetchStripeKeys = async () => {
     try {
-      const { data } = await supabase.from('business_settings').select('*').eq('id', 1).maybeSingle();
+      const { data } = await supabase.from('business_settings').select('stripe_publishable_key').eq('id', 1).maybeSingle();
       if (data) {
         setStripePublishableKey(data.stripe_publishable_key || '');
-        setStripeSecretKey(data.stripe_secret_key || '');
       }
     } catch (err) {
       console.error('Error fetching Stripe keys:', err);
@@ -55,7 +53,6 @@ export default function OwnerSettings() {
       const { error } = await supabase.from('business_settings').upsert({
         id: 1,
         stripe_publishable_key: stripePublishableKey,
-        stripe_secret_key: stripeSecretKey,
         updated_at: new Date().toISOString()
       }, { onConflict: 'id' });
       if (error) throw error;

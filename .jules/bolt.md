@@ -1,0 +1,3 @@
+## 2024-10-25 - React Inline Components and Memoization
+**Learning:** Defining functional components inside other functional components causes them to unmount and remount completely on every render, severely hurting performance. Also, computing derived state (like filtering arrays) without `useMemo` runs on every render, which gets worse as data scales.
+**Action:** Always extract child functional components to the top level, pass necessary data explicitly via props (avoid closures), wrap them in `React.memo` if they are pure, and wrap derived list computations in `useMemo` so they only recalculate when source data changes.

@@ -183,8 +183,10 @@ export default function JobChecklist({ jobId, userId }) {
               style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}
+              aria-label="Delete task"
+              title="Delete task"
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} aria-hidden="true" />
             </button>
           </div>
         ))}
@@ -199,8 +201,8 @@ export default function JobChecklist({ jobId, userId }) {
           className="form-input" 
           style={{ flexGrow: 1, backgroundColor: '#0f172a', borderColor: '#334155', color: 'white' }} 
         />
-        <button type="submit" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }}>
-          <Plus size={20} />
+        <button type="submit" className="btn btn-primary" style={{ padding: '12px 18px', borderRadius: '12px' }} aria-label="Add custom task" title="Add custom task">
+          <Plus size={20} aria-hidden="true" />
         </button>
       </form>
     </div>

@@ -1,0 +1,4 @@
+## 2024-05-30 - Prevent frontend exposure of Stripe secret key
+**Vulnerability:** The Stripe secret key was being fetched via a `select('*')` on the `business_settings` table and stored in frontend component state.
+**Learning:** Stripe secret keys must never be fetched to or stored on the frontend, even if they are only rendered in an authenticated dashboard context. Fetching secret keys to the browser violates the principle of least privilege and increases exposure risk.
+**Prevention:** Avoid `select('*')` on tables containing sensitive configuration. Select only the necessary non-sensitive columns. When updating sensitive fields via Supabase `upsert`, conditionally include them in the payload if they are populated via write-only inputs to prevent overwriting existing keys with empty values.

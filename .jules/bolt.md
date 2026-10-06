@@ -1,0 +1,3 @@
+## 2024-05-18 - Extracted nested React components for performance
+**Learning:** Defining functional React components inside the render loop of a parent component (e.g., `const JobCard = () => ...` inside `ClientHistory`) is a severe anti-pattern that causes the nested component to fully unmount and remount on every parent state change, breaking memoization and destroying local DOM state.
+**Action:** Always define React components at the top level of the module or file. Extract needed state dependencies by passing primitive boolean props (like `isSelected`) instead of relying on closures to the parent's state, and wrap the stable component in `React.memo` to optimize rendering performance for list items.

@@ -1,0 +1,3 @@
+## 2024-05-19 - React Component Memoization and Re-render Optimization
+**Learning:** Defining functional components (like `JobCard`) inside other functional components (like `ClientHistory`) triggers full unmounting and remounting on every parent render, severely impacting performance. Furthermore, passing global state objects (like `selected`) to child components causes unnecessary re-renders across all items when only one changes.
+**Action:** Always extract child component definitions outside the parent, wrap them in `React.memo`, and pass derived primitive boolean props (e.g., `isSelected={selected?.id === job.id}`) instead of global selection IDs to maximize memoization benefits.

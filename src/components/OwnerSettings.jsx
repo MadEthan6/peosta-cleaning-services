@@ -25,48 +25,10 @@ export default function OwnerSettings() {
   const [newDiscount, setNewDiscount] = useState(10);
   const [addingCode, setAddingCode] = useState(false);
 
-  // Stripe keys state
-  const [stripePublishableKey, setStripePublishableKey] = useState('');
-  const [stripeSecretKey, setStripeSecretKey] = useState('');
-  const [savingStripe, setSavingStripe] = useState(false);
-  const [savedStripe, setSavedStripe] = useState(false);
-
   useEffect(() => {
     fetchRates();
     fetchPromoCodes();
-    fetchStripeKeys();
   }, []);
-
-  const fetchStripeKeys = async () => {
-    try {
-      const { data } = await supabase.from('business_settings').select('*').eq('id', 1).maybeSingle();
-      if (data) {
-        setStripePublishableKey(data.stripe_publishable_key || '');
-        setStripeSecretKey(data.stripe_secret_key || '');
-      }
-    } catch (err) {
-      console.error('Error fetching Stripe keys:', err);
-    }
-  };
-
-  const handleSaveStripe = async () => {
-    setSavingStripe(true);
-    try {
-      const { error } = await supabase.from('business_settings').upsert({
-        id: 1,
-        stripe_publishable_key: stripePublishableKey,
-        stripe_secret_key: stripeSecretKey,
-        updated_at: new Date().toISOString()
-      }, { onConflict: 'id' });
-      if (error) throw error;
-      setSavedStripe(true);
-      setTimeout(() => setSavedStripe(false), 3000);
-    } catch (err) {
-      alert('Error saving Stripe keys: ' + err.message);
-    } finally {
-      setSavingStripe(false);
-    }
-  };
 
   const fetchRates = async () => {
     const { data } = await supabase.from('pricing_rates').select('*').eq('id', 1).maybeSingle();

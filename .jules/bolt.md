@@ -1,0 +1,3 @@
+## 2024-10-10 - Extracted and Memoized JobCard inside ClientHistory
+**Learning:** Defining a functional component (`JobCard`) inside a parent component (`ClientHistory`) causes the child to be recreated, unmounted, and remounted on every parent render, leading to unnecessary layout recalculations and DOM operations. Passing global selected state (`selected`) to child components in a list breaks `React.memo` benefits because all child components re-render when the selected state changes.
+**Action:** Always define functional components outside of their parent components. Wrap list child components in `React.memo` and pass down primitive boolean props (like `isSelected={selected?.id === job.id}`) instead of passing global selection state to maximize memoization benefits.

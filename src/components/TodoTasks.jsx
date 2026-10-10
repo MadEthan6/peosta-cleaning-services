@@ -108,8 +108,10 @@ export default function TodoTasks({ jobId, userRole, userId }) {
               <button
                 onClick={() => handleToggleTask(task)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: task.completed ? '#10b981' : '#64748b', display: 'flex', flexShrink: 0 }}
+                aria-label={task.completed ? "Mark incomplete" : "Mark complete"}
+                title={task.completed ? "Mark incomplete" : "Mark complete"}
               >
-                {task.completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                {task.completed ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
               </button>
               <span style={{
                 flexGrow: 1, fontSize: '0.9rem',
@@ -122,8 +124,10 @@ export default function TodoTasks({ jobId, userRole, userId }) {
                 <button
                   onClick={() => handleDeleteTask(task.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'flex', flexShrink: 0 }}
+                  aria-label="Delete task"
+                  title="Delete task"
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={14} aria-hidden="true" />
                 </button>
               )}
             </div>
@@ -155,8 +159,10 @@ export default function TodoTasks({ jobId, userRole, userId }) {
             disabled={adding || !newTask.trim()}
             className="btn btn-primary"
             style={{ padding: '8px 14px', display: 'flex', alignItems: 'center', gap: 4 }}
+            aria-label="Add task"
+            title="Add task"
           >
-            <Plus size={16} />
+            <Plus size={16} aria-hidden="true" />
           </button>
         </div>
       )}

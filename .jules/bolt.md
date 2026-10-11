@@ -1,0 +1,3 @@
+## 2024-05-14 - Optimize React Component Rendering by extracting functional components
+**Learning:** Defining functional components (like `JobCard`) inside other functional components (like `ClientHistory`) triggers full unmounting and remounting on every parent render, defeating memoization and causing unnecessary DOM operations.
+**Action:** Extract nested component definitions outside the parent component, explicitly pass required data as props (avoiding closures), and wrap the extracted component in `React.memo`. When doing this for list items, pass derived primitive boolean props (like `isSelected={selected?.id === job.id}`) instead of global selection IDs to maximize memoization benefits by ensuring only the newly and previously selected items re-render.

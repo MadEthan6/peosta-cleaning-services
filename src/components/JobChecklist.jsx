@@ -164,11 +164,21 @@ export default function JobChecklist({ jobId, userId }) {
             }}
           >
             <div 
-              className="flex align-center gap-4" 
+              role="checkbox"
+              aria-checked={task.is_completed}
+              tabIndex={0}
+              aria-label={`Toggle ${task.task_description}`}
+              className="flex align-center gap-4 focus-visible:ring-2 focus-visible:outline-none"
               style={{ cursor: 'pointer', flexGrow: 1 }} 
               onClick={() => handleToggle(task)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  handleToggle(task);
+                }
+              }}
             >
-              <div style={{ color: task.is_completed ? 'var(--color-success)' : '#94a3b8' }}>
+              <div style={{ color: task.is_completed ? 'var(--color-success)' : '#94a3b8' }} aria-hidden="true">
                 {task.is_completed ? <CheckSquare size={20} /> : <Square size={20} />}
               </div>
               <span style={{ 
@@ -180,11 +190,14 @@ export default function JobChecklist({ jobId, userId }) {
             </div>
             <button 
               onClick={() => handleDeleteTask(task.id)}
-              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7 }}
+              aria-label="Delete task"
+              title="Delete task"
+              className="focus-visible:ring-2 focus-visible:outline-none"
+              style={{ background: 'none', border: 'none', color: '#ef4444', cursor: 'pointer', opacity: 0.7, padding: '4px', borderRadius: '4px' }}
               onMouseEnter={(e) => e.target.style.opacity = 1}
               onMouseLeave={(e) => e.target.style.opacity = 0.7}
             >
-              <Trash2 size={16} />
+              <Trash2 size={16} aria-hidden="true" />
             </button>
           </div>
         ))}

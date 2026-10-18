@@ -1,0 +1,3 @@
+## 2024-10-18 - Extracted nested components
+**Learning:** Functional components should not be defined inside other functional components because it causes unmounting and remounting on every parent render.
+**Action:** Extract nested components, explicitly pass required data as props (avoiding closures), and wrap the extracted component in `React.memo` for maximum performance benefit. Always pass derived primitive boolean props (like `isSelected={selected?.id === job.id}`) instead of passing the entire global selection ID to all children.

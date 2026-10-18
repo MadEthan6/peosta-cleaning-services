@@ -1,10 +1,49 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Calendar, MapPin, DollarSign, FileText, Star, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 import RatingTip from './RatingTip';
 
 const statusColor = { pending: '#94a3b8', assigned: '#3b82f6', in_progress: '#f59e0b', completed: '#10b981' };
 const freqLabel = { 'one-time': 'One-time', 'weekly': 'Weekly', 'bi-weekly': 'Bi-Weekly', 'monthly': 'Monthly' };
+
+// ⚡ Bolt Optimization: Extracted nested JobCard to top level and wrapped in React.memo
+// Why: Prevents unmounting and remounting of all cards on every parent render.
+// Impact: Significantly reduces React reconciliation overhead and prevents DOM thrashing.
+const JobCard = React.memo(({ job, onClick, isSelected }) => (
+  <div
+    onClick={() => onClick(job)}
+    style={{
+      padding: '18px 20px', borderRadius: 12, cursor: 'pointer',
+      border: `1px solid ${isSelected ? '#2dd4bf' : '#334155'}`,
+      backgroundColor: isSelected ? 'rgba(45,212,191,0.05)' : '#1e293b',
+      transition: 'all 0.2s'
+    }}
+  >
+    <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
+      <span style={{
+        background: `${statusColor[job.status]}20`, color: statusColor[job.status],
+        padding: '3px 10px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700
+      }}>
+        {job.status.replace('_', ' ').toUpperCase()}
+      </span>
+      <span style={{ color: '#2dd4bf', fontWeight: 700, fontSize: '1.1rem' }}>
+        ${parseFloat(job.price).toFixed(2)}
+      </span>
+    </div>
+    <p style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>{job.service_package}</p>
+    <p style={{ color: '#94a3b8', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
+      <MapPin size={12} /> {job.address}
+    </p>
+    <p style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
+      <Calendar size={12} /> {new Date(job.scheduled_at).toLocaleDateString()} at {new Date(job.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
+      {job.frequency && job.frequency !== 'one-time' && (
+        <span style={{ marginLeft: 8, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 3 }}>
+          <RefreshCw size={10} /> {freqLabel[job.frequency]}
+        </span>
+      )}
+    </p>
+  </div>
+));
 
 export default function ClientHistory({ clientEmail, clientId }) {
   const [jobs, setJobs] = useState([]);
@@ -32,8 +71,11 @@ export default function ClientHistory({ clientEmail, clientId }) {
     }
   };
 
-  const upcoming = jobs.filter(j => j.status !== 'completed');
-  const past = jobs.filter(j => j.status === 'completed');
+  // ⚡ Bolt Optimization: Memoized derived lists
+  // Why: Prevents redundant array filtering when unrelated state (like `selected`) changes.
+  // Impact: Reduces CPU cycles during item selection.
+  const upcoming = useMemo(() => jobs.filter(j => j.status !== 'completed'), [jobs]);
+  const past = useMemo(() => jobs.filter(j => j.status === 'completed'), [jobs]);
 
   const downloadReceipt = (job) => {
     const lines = [
@@ -64,42 +106,6 @@ export default function ClientHistory({ clientEmail, clientId }) {
     URL.revokeObjectURL(url);
   };
 
-  const JobCard = ({ job, onClick }) => (
-    <div
-      onClick={() => onClick(job)}
-      style={{
-        padding: '18px 20px', borderRadius: 12, cursor: 'pointer',
-        border: `1px solid ${selected?.id === job.id ? '#2dd4bf' : '#334155'}`,
-        backgroundColor: selected?.id === job.id ? 'rgba(45,212,191,0.05)' : '#1e293b',
-        transition: 'all 0.2s'
-      }}
-    >
-      <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: 10, flexWrap: 'wrap', gap: 8 }}>
-        <span style={{
-          background: `${statusColor[job.status]}20`, color: statusColor[job.status],
-          padding: '3px 10px', borderRadius: 999, fontSize: '0.78rem', fontWeight: 700
-        }}>
-          {job.status.replace('_', ' ').toUpperCase()}
-        </span>
-        <span style={{ color: '#2dd4bf', fontWeight: 700, fontSize: '1.1rem' }}>
-          ${parseFloat(job.price).toFixed(2)}
-        </span>
-      </div>
-      <p style={{ color: 'white', fontWeight: 600, marginBottom: 4 }}>{job.service_package}</p>
-      <p style={{ color: '#94a3b8', fontSize: '0.82rem', display: 'flex', alignItems: 'center', gap: 4, marginBottom: 4 }}>
-        <MapPin size={12} /> {job.address}
-      </p>
-      <p style={{ color: '#64748b', fontSize: '0.8rem', display: 'flex', alignItems: 'center', gap: 4 }}>
-        <Calendar size={12} /> {new Date(job.scheduled_at).toLocaleDateString()} at {new Date(job.scheduled_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })}
-        {job.frequency && job.frequency !== 'one-time' && (
-          <span style={{ marginLeft: 8, color: '#f59e0b', display: 'flex', alignItems: 'center', gap: 3 }}>
-            <RefreshCw size={10} /> {freqLabel[job.frequency]}
-          </span>
-        )}
-      </p>
-    </div>
-  );
-
   return (
     <div className="animate-fade-in">
       <h2 style={{ fontSize: '2rem', color: 'white', marginBottom: 8 }}>My Bookings</h2>
@@ -122,7 +128,7 @@ export default function ClientHistory({ clientEmail, clientId }) {
                   Upcoming ({upcoming.length})
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {upcoming.map(job => <JobCard key={job.id} job={job} onClick={setSelected} />)}
+                  {upcoming.map(job => <JobCard key={job.id} job={job} onClick={setSelected} isSelected={selected?.id === job.id} />)}
                 </div>
               </div>
             )}
@@ -133,7 +139,7 @@ export default function ClientHistory({ clientEmail, clientId }) {
                   Past Cleanings ({past.length})
                 </h3>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: 10 }}>
-                  {past.map(job => <JobCard key={job.id} job={job} onClick={setSelected} />)}
+                  {past.map(job => <JobCard key={job.id} job={job} onClick={setSelected} isSelected={selected?.id === job.id} />)}
                 </div>
               </div>
             )}

@@ -1,0 +1,3 @@
+## 2024-05-24 - Prevent unnecessary list component re-renders
+**Learning:** Defining functional components inline inside a parent component (like `const JobCard = () => ...` inside `ClientHistory`) causes the inner component to fully unmount and remount on every parent render, leading to performance issues especially in mapped lists.
+**Action:** Extract list item components outside the parent component, explicitly pass required data as props (avoiding closures), and wrap the extracted component in `React.memo` to maximize memoization benefits. Pass derived primitive boolean props (like `isSelected={selected?.id === job.id}`) instead of global objects to ensure only affected list items re-render.

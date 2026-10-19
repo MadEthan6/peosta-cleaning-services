@@ -70,7 +70,7 @@ export default function TodoTasks({ jobId, userRole, userId }) {
     setTasks(prev => prev.filter(t => t.id !== id));
   };
 
-  const completedCount = tasks.filter(t => t.completed).length;
+  const completedCount = tasks.reduce((count, t) => count + (t.completed ? 1 : 0), 0);
 
   return (
     <div>

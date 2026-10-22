@@ -297,8 +297,10 @@ export default function OwnerSettings() {
                   <button
                     onClick={() => handleDeleteCode(code.id)}
                     style={{ background: 'none', border: '1px solid #ef4444', color: '#ef4444', borderRadius: 8, padding: '6px 10px', cursor: 'pointer' }}
+                    aria-label="Delete code"
+                    title="Delete code"
                   >
-                    <Trash2 size={14} />
+                    <Trash2 size={14} aria-hidden="true" />
                   </button>
                 </div>
               </div>

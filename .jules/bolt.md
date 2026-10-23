@@ -1,0 +1,3 @@
+## 2025-02-23 - Optimize ClientHistory Rendering
+**Learning:** Defining a functional component inside another functional component triggers full unmounting and remounting on every parent render, leading to poor performance, especially for list items. Filtering lists repeatedly on every render without memoization also hurts performance.
+**Action:** Extract nested functional components, pass explicit props (like `isSelected`), and wrap them in `React.memo()`. Use `React.useMemo()` to calculate derived states (like separating upcoming/past lists in a single loop) to prevent unnecessary recalculations on unrelated state updates.

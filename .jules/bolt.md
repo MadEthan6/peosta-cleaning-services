@@ -1,0 +1,3 @@
+## 2025-02-23 - Extracted functional component definition from parent component body
+**Learning:** Defining a functional component (like `JobCard`) inside the render body of a parent component (`ClientHistory`) is a major anti-pattern in React. It causes the nested component to be fully unmounted and remounted on every parent render (e.g. whenever the user selects a job), destroying state and hurting performance.
+**Action:** Always extract nested component definitions outside of their parent component, pass the necessary data as explicit props, and wrap them in `React.memo` for further render optimization.

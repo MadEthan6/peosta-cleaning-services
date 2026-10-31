@@ -1,0 +1,1 @@
+## 2024-05-24 - Initial Palette Journal\n**Learning:** Icon-only buttons often lack proper ARIA labels and titles, making them inaccessible to screen readers and confusing for users without tooltips.\n**Action:** Add aria-label, title, and aria-hidden='true' on the child SVG for icon-only buttons across the codebase.

@@ -1,0 +1,1 @@
+## 2024-05-18 - Avoid defining components inside components\n**Learning:** Defining components like JobCard inside ClientHistory triggers full unmounting and remounting on every render, severely impacting performance for lists.\n**Action:** Extract list item components outside the parent and use React.memo.

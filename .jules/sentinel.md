@@ -1,0 +1,4 @@
+## 2024-11-03 - [Prevent Secret Key Overwrite on Partial Update]
+**Vulnerability:** Updating a row in `business_settings` with `upsert` where `stripe_secret_key` state might be empty or intentionally left out can result in erasing the existing `stripe_secret_key` from the database. This occurs when form fields for sensitive data (like secret keys) are write-only (not populated on load for security) but the update payload includes the empty state value, replacing the existing secret with an empty string.
+**Learning:** Supabase `upsert` will overwrite existing values with whatever is in the payload. Omitted fields, however, are untouched. Conditionally adding keys to the payload ensures existing values aren't accidentally cleared by empty frontend state.
+**Prevention:** If a field like `stripe_secret_key` is write-only, build the payload object dynamically and only include `stripe_secret_key` if the user actually entered a new value.

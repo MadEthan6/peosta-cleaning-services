@@ -106,10 +106,12 @@ export default function TodoTasks({ jobId, userRole, userId }) {
               }}
             >
               <button
+                aria-label={task.completed ? "Mark task incomplete" : "Mark task complete"}
+                title={task.completed ? "Mark task incomplete" : "Mark task complete"}
                 onClick={() => handleToggleTask(task)}
                 style={{ background: 'none', border: 'none', cursor: 'pointer', color: task.completed ? '#10b981' : '#64748b', display: 'flex', flexShrink: 0 }}
               >
-                {task.completed ? <CheckSquare size={20} /> : <Square size={20} />}
+                {task.completed ? <CheckSquare size={20} aria-hidden="true" /> : <Square size={20} aria-hidden="true" />}
               </button>
               <span style={{
                 flexGrow: 1, fontSize: '0.9rem',
@@ -120,10 +122,12 @@ export default function TodoTasks({ jobId, userRole, userId }) {
               </span>
               {(userRole === 'owner') && (
                 <button
+                  aria-label="Delete task"
+                  title="Delete task"
                   onClick={() => handleDeleteTask(task.id)}
                   style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#334155', display: 'flex', flexShrink: 0 }}
                 >
-                  <Trash2 size={14} />
+                  <Trash2 size={14} aria-hidden="true" />
                 </button>
               )}
             </div>

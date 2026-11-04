@@ -1,0 +1,4 @@
+
+## 2024-05-24 - React useMemo optimization for array operations
+**Learning:** Derived array computations like `.filter()` or `.reduce()` inside React components re-run on every render if not memoized, which can be expensive especially if the data arrays are large. Specifically, memory rule: 'When processing or deriving arrays from state in React components (e.g., filtering lists via .filter()), combine chained operations into a single loop and wrap the computation in useMemo (e.g., useMemo(() => data.filter(...), [data])) to prevent expensive redundant recalculations during unrelated state updates, such as when a user merely selects an item.'
+**Action:** When working with arrays retrieved from state, wrap the operations deriving subset arrays or aggregated values in a `useMemo` block to ensure they only recalculate when the original state array changes.

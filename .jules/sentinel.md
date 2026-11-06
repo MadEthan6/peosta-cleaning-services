@@ -1,0 +1,4 @@
+## 2024-05-18 - Prevent Frontend Exposure of Backend Secrets
+**Vulnerability:** Stripe secret keys (or any API secret keys) were being queried from the database and loaded into frontend component state, exposing them to anyone inspecting the frontend application's network payload or memory state.
+**Learning:** Frontend code should only manage public keys (`stripe_publishable_key`). Secret keys should be managed backend-only. When a frontend UI needs to allow updating a secret key (like an admin settings panel), it should be a write-only operation.
+**Prevention:** Make secret fields write-only on the frontend. Do not query or populate them in `useEffect` fetch calls. When updating via Supabase `.upsert()`, construct the update payload conditionally to only include the secret key if the user entered a new one (`if (secretKey.trim() !== '') { payload.secret_key = secretKey }`), ensuring omitted fields don't accidentally overwrite existing keys with empty values.

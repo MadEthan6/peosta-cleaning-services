@@ -1049,8 +1049,14 @@ export default function App() {
                       </div>
                       <div style={{ position: 'relative' }}>
                         <input type={showPassword ? 'text' : 'password'} required value={authPassword} onChange={(e) => setAuthPassword(e.target.value)} className="form-input" placeholder="••••••••" />
-                        <button type="button" onClick={() => setShowPassword(!showPassword)} style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}>
-                          {showPassword ? <EyeOff size={18} /> : <Eye size={18} />}
+                        <button
+                          type="button"
+                          onClick={() => setShowPassword(!showPassword)}
+                          style={{ position: 'absolute', right: 16, top: '50%', transform: 'translateY(-50%)', background: 'none', border: 'none', cursor: 'pointer', color: 'var(--text-muted)' }}
+                          aria-label={showPassword ? "Hide password" : "Show password"}
+                          title={showPassword ? "Hide password" : "Show password"}
+                        >
+                          {showPassword ? <EyeOff size={18} aria-hidden="true" /> : <Eye size={18} aria-hidden="true" />}
                         </button>
                       </div>
                     </div>

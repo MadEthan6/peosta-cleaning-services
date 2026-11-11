@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useMemo } from 'react';
 import { supabase } from '../supabaseClient';
 import { Calendar, MapPin, DollarSign, FileText, Star, RefreshCw, CheckCircle2, Clock } from 'lucide-react';
 import RatingTip from './RatingTip';
@@ -32,8 +32,9 @@ export default function ClientHistory({ clientEmail, clientId }) {
     }
   };
 
-  const upcoming = jobs.filter(j => j.status !== 'completed');
-  const past = jobs.filter(j => j.status === 'completed');
+  // Performance optimization: Memoize filtered arrays to avoid re-calculating on every re-render (e.g., when a user selects a job)
+  const upcoming = useMemo(() => jobs.filter(j => j.status !== 'completed'), [jobs]);
+  const past = useMemo(() => jobs.filter(j => j.status === 'completed'), [jobs]);
 
   const downloadReceipt = (job) => {
     const lines = [
